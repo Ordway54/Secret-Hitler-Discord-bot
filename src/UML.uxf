@@ -1,0 +1,13 @@
+<diagram program="umletino" version="15.1"><zoom_level>10</zoom_level><element><id>UMLClass</id><coordinates><x>270</x><y>110</y><w>350</w><h>330</h></coordinates><panel_attributes>Player
+--
+-id: int
+-role: str
+-dead: bool
+--
+Methods:
+-get_id()
+-get_party()
+--
+Responsibilities
+-- Resp1
+*-- Resp2*</panel_attributes><additional_attributes></additional_attributes></element></diagram>
