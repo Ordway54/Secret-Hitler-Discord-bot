@@ -1,13 +1,63 @@
-<diagram program="umletino" version="15.1"><zoom_level>10</zoom_level><element><id>UMLClass</id><coordinates><x>270</x><y>110</y><w>350</w><h>330</h></coordinates><panel_attributes>Player
+<diagram program="umletino" version="15.1"><zoom_level>9</zoom_level><help_text>Space for diagram notesiles:</help_text><element><id>UMLClass</id><coordinates><x>63</x><y>171</y><w>126</w><h>171</h></coordinates><panel_attributes>Player
 --
--id: int
+Attributes:
+
+-player_id: int
 -role: str
 -dead: bool
 --
 Methods:
+
 -get_id()
 -get_party()
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>UMLClass</id><coordinates><x>360</x><y>0</y><w>216</w><h>693</h></coordinates><panel_attributes>Game
 --
-Responsibilities
--- Resp1
-*-- Resp2*</panel_attributes><additional_attributes></additional_attributes></element></diagram>
+Attributes:
+
+-players: list of Player obj
+-dead_players: list of Player obj
+-liberals: list of Player obj
+-fascists: list of Player obj
+
+-votes: dict
+
+-fascist_policies_enacted: int
+-liberal_policies_enacted: int
+
+-incumbent_president_id: int
+-nominated_president_id: int
+-president: Player obj
+-previous_president_id: int
+
+-nominated_chancellor_id: int
+-incumbent_chancellor_id: int
+-chancellor: Player obj
+
+-state: GameState
+-admin_id: int
+-game_id: int
+-channel_id: int
+-max_players: int
+
+-policy_tiles: [str]
+-discarded_policy_tiles: [str]
+-election_tracker: int
+
+
+--
+Methods:
+
+-add_player()
+-remove_player()
+-get_player()
+-has_player()
+-start_game()
+-destroy()
+-next_president()
+-nominate_chancellor()
+-vote()
+-tally_votes()
+-election()
+-force_next_policy()
+-check_for_win()
+</panel_attributes><additional_attributes></additional_attributes></element><element><id>Relation</id><coordinates><x>180</x><y>252</y><w>198</w><h>27</h></coordinates><panel_attributes>lt=&lt;&lt;-</panel_attributes><additional_attributes>200;10;10;10</additional_attributes></element></diagram>

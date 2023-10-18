@@ -1,5 +1,6 @@
-from game import Game
+# from game import Game
 
-a = Game(1,2,3,5)
+# a = Game(1,2,3,5)
 
-print(a.admin_id)
+# print(a.admin_id)
+

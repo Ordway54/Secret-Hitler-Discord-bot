@@ -151,7 +151,7 @@ class Game:
         yes_votes = 0
         no_votes = 0
 
-        for player, vote in self.votes.items():
+        for _, vote in self.votes.items():
             if vote == 'yes':
                 yes_votes += 1
             elif vote == 'no':
@@ -163,8 +163,10 @@ class Game:
             
         else:
             self.election_tracker += 1
+
             if self.election_tracker == 3:
-                # next policy plays immediately
+                self.force_next_policy()
+            
             self.next_president()
             
 
@@ -181,6 +183,21 @@ class Game:
             self.fascist_policies_enacted += 1
         else:
             self.liberal_policies_enacted += 1
+        
+        self.election_tracker = 0
+
+    def draw_policy(self):
+        """Draws the top policy tile from the policy tile deck."""
+
+        # check if deck has sufficient tiles
+        if len(self.policy_tiles) == 0:
+            self.policy_tiles = self.discarded_policy_tiles.copy()
+            self.discarded_policy_tiles.clear()
+            random.shuffle(self.policy_tiles)
+        
+        
+        self.policy_tiles = self.discarded_policy_tiles.copy()
+
     
     def check_for_win(self):
         
@@ -205,9 +222,6 @@ class Game:
                     # Fascists win
                     self.state = GameState.GAME_OVER
         
-
-
-
 
 class Player:
     """Represents a Player in a Secret Hitler game."""

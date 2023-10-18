@@ -36,10 +36,10 @@ async def on_message(message):
 @client.event
 async def on_reaction_add(reaction, user):
     if user.id == client.user.id:
-        # ignore bot's reactions
+        # ignore reactions made by bot
         return
     
-    # get reference to Game instance associated with the user
+    # get reference to Game instance associated with user
     game = get_game_with_player(user.id)
 
     if game is None:
@@ -62,10 +62,20 @@ async def on_reaction_add(reaction, user):
             return
         
         if len(game.votes) == len(game.players):
-            # all players have voted
+            # all players have voted, end voting sequence
+            game.tally_votes()
             
 
+@client.event(name="startSH")
+async def start_game(context):
+    admin_id = context.message.author.id
+    channel_id = context.message.channel.id
+    game_id = "game_" + str(len(active_games) + 1)
+    max_players = 10 # hard coded for now
 
+    game = Game(channel_id,game_id,admin_id,max_players)
+
+    active_games[game_id] = game
 
 
 
