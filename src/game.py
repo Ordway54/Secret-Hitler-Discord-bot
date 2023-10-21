@@ -5,6 +5,20 @@ from config import configuration
 class Game:
     """Represents a game of Secret Hitler."""
 
+    game_license_terms = (
+            """
+            Secret Hitler was created by Mike Boxleiter, Tommy Maranges,\
+            and Mac Schubert.\n
+            Secret Hitler is licensed under a Creative Commons\
+            Attribution-NonCommercial-ShareAlike 4.0
+            International License. This license permits the copying and\
+            redistribution of Secret Hitler in any medium or format for\
+            non-commercial purposes.\n
+
+            Visit http://www.secrethitler.com/ to learn more.
+            """
+            )
+
     def __init__(self, channel_id, game_id, admin_id, max_players):
         self.players = []
         self.dead_players = []
@@ -30,6 +44,7 @@ class Game:
         self.game_id = game_id
         self.channel_id = channel_id
         self.max_players = max_players
+        self.veto_power_enabled = False
 
         self.policy_tiles = ['Liberal','Liberal','Liberal','Liberal',
                              'Liberal','Liberal','Fascist','Fascist',
@@ -177,14 +192,15 @@ class Game:
     def force_next_policy(self):
         """Enacts the next policy in the deck due to 3 consecutive failed elections."""
 
-        top_policy = self.policy_tiles.pop(0)
+        if len(self.policy_tiles) >= 1:
+            top_policy = self.policy_tiles.pop(0)
 
-        if top_policy == "Fascist":
-            self.fascist_policies_enacted += 1
-        else:
-            self.liberal_policies_enacted += 1
-        
-        self.election_tracker = 0
+            if top_policy == "Fascist":
+                self.fascist_policies_enacted += 1
+            else:
+                self.liberal_policies_enacted += 1
+            
+            self.election_tracker = 0
 
     def draw_policy(self):
         """Draws the top policy tile from the policy tile deck."""
@@ -221,6 +237,7 @@ class Game:
                 elif player.get_id() == self.incumbent_chancellor_id and self.fascist_policies_enacted > 3:
                     # Fascists win
                     self.state = GameState.GAME_OVER
+
         
 
 class Player:

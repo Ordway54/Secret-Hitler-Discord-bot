@@ -1,13 +1,13 @@
 # Discord bot
 from game import Game, GameState
 import discord
+from discord.ext import commands
 
-# This example requires the 'message_content' intent.
-
-intents = discord.Intents.default()
+intents = discord.Intents.all()
 intents.message_content = True
 
-client = discord.Client(intents=intents)
+# client = discord.Client(intents=intents)
+bot = commands.Bot(command_prefix='.',intents=intents)
 
 active_games = {}
 
@@ -21,21 +21,24 @@ def get_game_with_player(player_id):
     return None
         
 
-@client.event
+@bot.event
 async def on_ready():
-    print(f'We have logged in as {client.user}')
+    print(f'We have logged in as {bot.user}')
 
-@client.event
+@bot.event
 async def on_message(message):
-    if message.author == client.user:
+    if message.author == bot.user:
         return
 
     if message.content.startswith('$hello'):
-        await message.channel.send('Hello!')
+        await bot.process_commands(message.channel.send('Hello!'))
+    
+    await bot.process_commands(message)
 
-@client.event
+@bot.event
 async def on_reaction_add(reaction, user):
-    if user.id == client.user.id:
+    print('reaction dude!')
+    if user.id == bot.user.id:
         # ignore reactions made by bot
         return
     
@@ -66,8 +69,9 @@ async def on_reaction_add(reaction, user):
             game.tally_votes()
             
 
-@client.event(name="startSH")
+@bot.command(name='start')
 async def start_game(context):
+    print('starting game')
     admin_id = context.message.author.id
     channel_id = context.message.channel.id
     game_id = "game_" + str(len(active_games) + 1)
@@ -78,5 +82,18 @@ async def start_game(context):
     active_games[game_id] = game
 
 
+@bot.command(aliases=("terms","legal","license"))
+async def send_licensing(context):
+    print('legal')
+    title = "Credits & License"
+    description = Game.game_license_terms
+    url = "https://www.secrethitler.com/"
+    orange = discord.Color.from_rgb(242,100,74) # "SH orange"
+    
+    terms_embed = discord.Embed(title=title,description=description,url=url,color=orange)
 
-client.run('your token here')
+    await context.channel.send(embed=terms_embed)
+
+
+
+bot.run('NzU4NjkwNDA0MTEwOTU4NjUy.GXeYEl.9UMtO9G5ybHkBhKJ93o2PskWud4ES1jStTDItk')
