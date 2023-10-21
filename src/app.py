@@ -2,6 +2,7 @@
 from game import Game, GameState
 import discord
 from discord.ext import commands
+import os
 
 intents = discord.Intents.all()
 intents.message_content = True
@@ -24,6 +25,7 @@ def get_game_with_player(player_id):
 @bot.event
 async def on_ready():
     print(f'We have logged in as {bot.user}')
+    await bot.load_extension('cogs.game_maintenance')
 
 @bot.event
 async def on_message(message):
@@ -95,5 +97,9 @@ async def send_licensing(context):
     await context.channel.send(embed=terms_embed)
 
 
+token = os.environ.get('DISCORD_BOT_TOKEN')
+if token is None:
+    print("Could not get Bot Token!")
+    exit(0)
 
-bot.run('NzU4NjkwNDA0MTEwOTU4NjUy.GXeYEl.9UMtO9G5ybHkBhKJ93o2PskWud4ES1jStTDItk')
+bot.run(token)
