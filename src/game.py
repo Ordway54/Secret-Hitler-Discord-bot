@@ -10,8 +10,9 @@ class Game:
             Secret Hitler was created by Mike Boxleiter, Tommy Maranges,\
             and Mac Schubert.\n
             Secret Hitler is licensed under a Creative Commons\
-            Attribution-NonCommercial-ShareAlike 4.0
-            International License. This license permits the copying and\
+            Attribution-NonCommercial-ShareAlike 4.0\
+            International License.
+            This license permits the copying and\
             redistribution of Secret Hitler in any medium or format for\
             non-commercial purposes.\n
 
@@ -110,7 +111,7 @@ class Game:
 
         # assign player roles
         for i in range(self.max_players):
-            player = self.players[i]
+            player: Player = self.players[i]
             player.role = roles[i]
 
         # select first Presidential candidate
@@ -185,7 +186,6 @@ class Game:
             self.next_president()
             
 
-
     def election(self):
         self.state = GameState.ELECTION
 
@@ -238,7 +238,6 @@ class Game:
                     # Fascists win
                     self.state = GameState.GAME_OVER
 
-        
 
 class Player:
     """Represents a Player in a Secret Hitler game."""

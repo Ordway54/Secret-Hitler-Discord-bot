@@ -2,7 +2,6 @@
 from game import Game, GameState
 import discord
 from discord.ext import commands
-import os
 
 intents = discord.Intents.all()
 intents.message_content = True
@@ -22,6 +21,26 @@ def get_game_with_player(player_id):
     return None
         
 
+class GameButton(discord.ui.View):
+    
+    def __init__(self, label: str, color: discord.Color):
+        super().__init__()
+        self.label = label
+        self.color = color
+        self.add_item(discord.ui.Button(label=self.label,style=discord.ButtonStyle.green))
+
+    @discord.ui.button(label="Join Game", style=discord.ButtonStyle.green)
+    async def vote_ja(self, interaction: discord.interactions.Interaction, button: discord.ui.Button):
+
+        await interaction.response.send_message(f"{interaction.user.name} has joined the game lobby.")
+    
+    @discord.ui.button(label="Leave Game", style=discord.ButtonStyle.green)
+    async def vote_ja(self, interaction: discord.Interaction, button: discord.ui.Button):
+
+        await interaction.response.send_message(f"{interaction.user.name} has left the game lobby.")
+
+
+
 @bot.event
 async def on_ready():
     print(f'We have logged in as {bot.user}')
@@ -31,14 +50,11 @@ async def on_ready():
 async def on_message(message):
     if message.author == bot.user:
         return
-
-    if message.content.startswith('$hello'):
-        await bot.process_commands(message.channel.send('Hello!'))
     
     await bot.process_commands(message)
 
 @bot.event
-async def on_reaction_add(reaction, user):
+async def on_reaction_add(reaction: discord.Reaction, user: discord.User):
     print('reaction dude!')
     if user.id == bot.user.id:
         # ignore reactions made by bot
@@ -72,8 +88,8 @@ async def on_reaction_add(reaction, user):
             
 
 @bot.command(name='start')
-async def start_game(context):
-    print('starting game')
+async def start_game(context: Context):
+
     admin_id = context.message.author.id
     channel_id = context.message.channel.id
     game_id = "game_" + str(len(active_games) + 1)
@@ -84,9 +100,18 @@ async def start_game(context):
     active_games[game_id] = game
 
 
+@bot.command(name='button')
+async def button_test(context: Context):
+
+    await context.send("Button", view=GameButton("Join Game", discord.Color.green))
+
+
+@bot.event
+async def on_button_click(interaction: discord.Interaction):
+    print('this was triggered', type(interaction))
+
 @bot.command(aliases=("terms","legal","license"))
-async def send_licensing(context):
-    print('legal')
+async def send_licensing(context: Context):
     title = "Credits & License"
     description = Game.game_license_terms
     url = "https://www.secrethitler.com/"
