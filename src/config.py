@@ -1,3 +1,8 @@
+"""
+This module contains the configurations for Secret Hitler games. Games vary\
+in structure depending on the number of players in the game.
+"""
+
 configuration = {
     5: {
         "roles": [
@@ -7,6 +12,7 @@ configuration = {
             'Fascist',
             'Hitler'
         ],
+        "Hitler_knows_fascists": True
     },
 
     6: {
@@ -18,6 +24,7 @@ configuration = {
             'Fascist',
             'Hitler'
         ],
+        "Hitler_knows_fascists": True
     },
 
     7: {
@@ -30,6 +37,7 @@ configuration = {
             'Fascist',
             'Hitler'
         ],
+        "Hitler_knows_fascists": False
     },
 
     8: {
@@ -43,6 +51,7 @@ configuration = {
             'Fascist',
             'Hitler'
         ],
+        "Hitler_knows_fascists": False
     },
 
     9: {
@@ -57,6 +66,7 @@ configuration = {
             'Fascist',
             'Hitler'
         ],
+        "Hitler_knows_fascists": False
     },
 
     10: {
@@ -72,5 +82,6 @@ configuration = {
             'Fascist',
             'Hitler'
         ],
+        "Hitler_knows_fascists": False
     }
 }

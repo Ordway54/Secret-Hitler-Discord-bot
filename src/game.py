@@ -1,6 +1,11 @@
+"""
+This module contains all of the game logic for playing Secret Hitler.
+"""
+
 import random
 from enum import Enum
 from config import configuration
+import discord
 
 class Game:
     """Represents a game of Secret Hitler."""
@@ -20,25 +25,25 @@ class Game:
             """
             )
 
+    SH_ORANGE = discord.Color.from_rgb(242,100,74)
+
     def __init__(self, channel_id, game_id, admin_id, max_players):
         self.players = []
         self.dead_players = []
-        self.liberals = []
-        self.fascists = []
 
         self.votes = {}
 
         self.fascist_policies_enacted = 0
         self.liberal_policies_enacted = 0
 
-        self.incumbent_president_id = 0
-        self.nominated_president_id = 0
+        self.incumbent_president = None
+        self.nominated_president = None
         self.president = None
-        self.previous_president_id = 0
+        self.previous_president = None
 
-        self.nominated_chancellor_id = 0
-        self.incumbent_chancellor_id = None
-        self.previous_chancellor_id = 0
+        self.nominated_chancellor = None
+        self.incumbent_chancellor = None
+        self.previous_chancellor = None
 
         self.state = GameState.GAME_STARTING
         self.admin_id = admin_id
@@ -47,18 +52,17 @@ class Game:
         self.max_players = max_players
         self.veto_power_enabled = False
 
-        self.policy_tiles = ['Liberal','Liberal','Liberal','Liberal',
-                             'Liberal','Liberal','Fascist','Fascist',
-                             'Fascist','Fascist','Fascist','Fascist',
-                             'Fascist','Fascist','Fascist','Fascist',
-                             'Fascist']
+        self.policy_tile_deck = ['Liberal','Liberal','Liberal','Liberal',
+                                'Liberal','Liberal','Fascist','Fascist',
+                                'Fascist','Fascist','Fascist','Fascist',
+                                'Fascist','Fascist','Fascist','Fascist',
+                                'Fascist']
         
         self.discarded_policy_tiles = []
         self.election_tracker = 0
         
-        
-        random.shuffle(self.policy_tiles)
         self.add_player(admin_id)
+        self.start()
 
     def add_player(self, player_id):
         """Adds a player to the Game."""
@@ -74,15 +78,15 @@ class Game:
     def remove_player(self, player_id):
         """Removes a player from the Game."""
 
-        player = Player(player_id)
-
-        if player in self.players:
-            self.players.remove()
-        else:
-            return False
+        for player in self.players:
+            player: Player
+            if player_id == player.get_id():
+                self.players.remove(player)
+                return
+        return False
     
     def get_player(self, player_id):
-        """Returns a Player instance matching the player_id, if found."""
+        """Returns a Player instance matching player_id."""
 
         for player in self.players:
             player: Player
@@ -98,16 +102,22 @@ class Game:
                 return True
         return False
     
-    def start_game(self):
+    def start(self):
+        """
+        Starts a game of Secret Hitler by shuffling player seats,\
+        shuffling the policy tile deck, and randomly assigning a role\
+        to each player.
+        """
         
         if len(self.players) < self.max_players:
+            print("Game not started. Not enough players.")
             return False
         
-        # shuffle player seats
         random.shuffle(self.players)
+        random.shuffle(self.policy_tile_deck)
 
-        # shuffle roles
         roles = configuration[self.max_players]["roles"]
+        random.shuffle(roles)
 
         # assign player roles
         for i in range(self.max_players):
@@ -116,33 +126,36 @@ class Game:
 
         # select first Presidential candidate
         self.president = self.players[0]
+
+        self.state = GameState.NOMINATION
     
     def destroy(self):
         """Deletes the game instance and undoes all changes to Discord server."""
-        pass
+        # do stuff here
+        # delete all temporary text channels associated with Game
+        del self
 
+    def rotate_president(self):
+        """Assigns the role of nominated President to the next player in line."""
 
-    def next_president(self):
-        """Assigns the role of nominated President to the next player."""
-
-        if self.incumbent_president_id >= len(self.players - 1):
-            self.incumbent_president_id = 0
+        if self.incumbent_president >= len(self.players - 1):
+            self.incumbent_president = 0
         else:
-            self.incumbent_president_id += 1
+            self.incumbent_president += 1
 
-        self.previous_president_id = self.incumbent_president_id
+        self.previous_president = self.incumbent_president
 
     def nominate_chancellor(self, player_id):
 
         self.state = GameState.NOMINATION
 
         # check if previous President has been nominated Chancellor
-        if player_id == self.previous_president_id:
+        if player_id == self.previous_president:
             # term-limited
             return False
         
         # check if previous Chancellor has been nominated Chancellor again
-        if player_id == self.previous_chancellor_id:
+        if player_id == self.previous_chancellor:
             # term-limited
             return False
         
@@ -170,21 +183,70 @@ class Game:
         for _, vote in self.votes.items():
             if vote == 'yes':
                 yes_votes += 1
-            elif vote == 'no':
+            else:
                 no_votes += 1
                
         if yes_votes > no_votes:
-            self.election_tracker = 0
-            pass
+            self.reset_election_tracker()
+            self.state = GameState.LEGISLATIVE_PRESIDENT
             
         else:
-            self.election_tracker += 1
-
-            if self.election_tracker == 3:
+            country_in_chaos = self.advance_election_tracker()
+            if country_in_chaos:
                 self.force_next_policy()
+                self.reset_election_tracker()
+                self.reset_term_limits()
             
-            self.next_president()
+            self.state = GameState.NOMINATION
+            self.rotate_president()
             
+    def reset_election_tracker(self):
+        """Resets the election tracker to 0."""
+        self.election_tracker = 0
+    
+    def advance_election_tracker(self, n=1) -> bool:
+        """Advances the election tracker by n (defaults to 1) and returns\
+        True if the election tracker == 3. Otherwise returns False."""
+        
+        self.election_tracker += n
+
+        if self.election_tracker == 3:
+            return True
+        return False
+
+    def reset_term_limits(self):
+        self.previous_chancellor = None
+        self.previous_president = None
+    
+    def enable_veto_power(self):
+        """Enables veto power if 5 or more Fascist policies have been enacted."""
+        if self.fascist_policies_enacted >= 5:
+            self.veto_power_enabled = True
+    
+    def veto(self, president_veto: bool, chancellor_veto: bool, policy_tiles: list):
+        """Allows the agenda to be veto'd if both President and Chancellor agree."""
+        
+        if self.veto_power_enabled:
+            if all((president_veto, chancellor_veto)):
+                # veto passes
+                for tile in policy_tiles:
+                    self.discarded_policy_tiles.append(tile)
+                
+                country_in_chaos = self.advance_election_tracker()
+                if country_in_chaos:
+                    self.force_next_policy()
+                    self.reset_election_tracker()
+                    self.reset_term_limits()
+                    self.check_for_win()
+                
+                self.rotate_president()
+
+            else:
+                # veto fails
+                return False
+        else:
+            # veto power is no in effect yet
+            return False
 
     def election(self):
         self.state = GameState.ELECTION
@@ -192,51 +254,60 @@ class Game:
     def force_next_policy(self):
         """Enacts the next policy in the deck due to 3 consecutive failed elections."""
 
-        if len(self.policy_tiles) >= 1:
-            top_policy = self.policy_tiles.pop(0)
+        if len(self.policy_tile_deck) >= 3:
+            top_policy = self.policy_tile_deck.pop(0)
 
             if top_policy == "Fascist":
                 self.fascist_policies_enacted += 1
+                self.enable_veto_power()
             else:
                 self.liberal_policies_enacted += 1
-            
-            self.election_tracker = 0
 
-    def draw_policy(self):
-        """Draws the top policy tile from the policy tile deck."""
+            if len(self.policy_tile_deck) < 3:
+                self.refill_policy_tile_deck()
 
-        # check if deck has sufficient tiles
-        if len(self.policy_tiles) == 0:
-            self.policy_tiles = self.discarded_policy_tiles.copy()
+    def refill_policy_tile_deck(self):
+        """Refills the policy tile deck if there are insufficient policy tiles."""
+
+        if len(self.policy_tile_deck) < 3:
+            for tile in self.discarded_policy_tiles:
+                self.policy_tile_deck.append(tile)
             self.discarded_policy_tiles.clear()
-            random.shuffle(self.policy_tiles)
-        
-        
-        self.policy_tiles = self.discarded_policy_tiles.copy()
+            random.shuffle(self.policy_tile_deck)
 
-    
-    def check_for_win(self):
-        
+    def draw_policy_tile(self):
+        """Draws the top policy tile from the policy tile deck."""
+        if len(self.policy_tile_deck) > 0:
+            return self.policy_tile_deck[0]
+
+    def check_for_win(self) -> (bool,str):
+        """Checks possible win conditions and returns True if the game is over.\
+            False otherwise."""
+
+        # check if game over based on enacted policy counts
         if self.liberal_policies_enacted >= 5 and self.fascist_policies_enacted < 6:
             self.state = GameState.GAME_OVER
-            return
+            return (True, "Game Over. The Liberals win!")
         elif self.fascist_policies_enacted >= 6 and self.liberal_policies_enacted < 5:
             self.state = GameState.GAME_OVER
-            return
+            return (True, "Game Over. The Fascists win!")
         
         
         for player in self.players:
             player: Player
             
-            # check if Hitler has been assassinated
             if player.role == "Hitler":
+                # check if Hitler has been assassinated
                 if player.dead:
-                    # Liberals win
                     self.state = GameState.GAME_OVER
-            
-                elif player.get_id() == self.incumbent_chancellor_id and self.fascist_policies_enacted > 3:
-                    # Fascists win
+                    return (True,"Hitler has been assassinated! Game Over. The Liberals win!")
+
+                # check if Hitler has been elected Chancellor
+                elif (player.get_id() == self.incumbent_chancellor) and self.fascist_policies_enacted > 3:
                     self.state = GameState.GAME_OVER
+                    return (True, "Hitler has been elected Chancellor! Game Over. The Fascists win!")
+        
+        return False
 
 
 class Player:
