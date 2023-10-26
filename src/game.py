@@ -10,7 +10,7 @@ import discord
 class Game:
     """Represents a game of Secret Hitler."""
 
-    game_license_terms = (
+    LICENSE_TERMS = (
             """
             Secret Hitler was created by Mike Boxleiter, Tommy Maranges,\
             and Mac Schubert.\n
@@ -26,8 +26,10 @@ class Game:
             )
 
     SH_ORANGE = discord.Color.from_rgb(242,100,74)
+    MIN_PLAYERS = 5
+    MAX_PLAYERS = 10
 
-    def __init__(self, channel_id, game_id, admin_id, max_players):
+    def __init__(self, game_id, admin_id):
         self.players = []
         self.dead_players = []
 
@@ -36,20 +38,21 @@ class Game:
         self.fascist_policies_enacted = 0
         self.liberal_policies_enacted = 0
 
-        self.incumbent_president = None
-        self.nominated_president = None
-        self.president = None
-        self.previous_president = None
+        self.president_rotation_index : int = 0
+        self.incumbent_president : Player = None
+        # self.nominated_president : Player = None
+        self.president : Player = None
+        self.previous_president : Player = None
 
-        self.nominated_chancellor = None
-        self.incumbent_chancellor = None
-        self.previous_chancellor = None
+        # self.nominated_chancellor : Player = None
+        self.incumbent_chancellor : Player = None
+        self.previous_chancellor : Player = None
 
-        self.state = GameState.GAME_STARTING
+        self.state = GameState.LOBBY
         self.admin_id = admin_id
         self.game_id = game_id
-        self.channel_id = channel_id
-        self.max_players = max_players
+        self.max_players = 10
+        self.min_players = 5
         self.veto_power_enabled = False
 
         self.policy_tile_deck = ['Liberal','Liberal','Liberal','Liberal',
@@ -60,11 +63,15 @@ class Game:
         
         self.discarded_policy_tiles = []
         self.election_tracker = 0
-        
-        self.add_player(admin_id)
-        self.start()
 
-    def add_player(self, player_id):
+        # server modifications
+        self.category = None
+        self.text_channel = None
+        self.lobby_embed = None
+        
+        self.add_player(admin_id,'freaky Mike')
+
+    def add_player(self, player_id: int, player_name: str):
         """Adds a player to the Game."""
 
         player_count = len(self.players)
@@ -72,7 +79,7 @@ class Game:
         if player_count == self.max_players:
             return False
         else:
-            self.players.append(Player(player_id))
+            self.players.append(Player(player_id,player_name))
             return True
     
     def remove_player(self, player_id):
@@ -94,6 +101,12 @@ class Game:
                 return player
         return None
     
+    def get_players(self):
+        return self.players
+    
+    def get_id(self):
+        return self.game_id
+    
     def has_player(self, player_id):
         """Returns True if player_id matches a player in the Game."""
 
@@ -108,7 +121,8 @@ class Game:
         shuffling the policy tile deck, and randomly assigning a role\
         to each player.
         """
-        
+        self.state = GameState.GAME_STARTING
+
         if len(self.players) < self.max_players:
             print("Game not started. Not enough players.")
             return False
@@ -138,28 +152,24 @@ class Game:
     def rotate_president(self):
         """Assigns the role of nominated President to the next player in line."""
 
-        if self.incumbent_president >= len(self.players - 1):
-            self.incumbent_president = 0
+        if self.president_rotation_index == (len(self.players) - 1):
+            self.president_rotation_index = 0
         else:
-            self.incumbent_president += 1
-
-        self.previous_president = self.incumbent_president
+            self.president_rotation_index += 1
 
     def nominate_chancellor(self, player_id):
 
         self.state = GameState.NOMINATION
 
-        # check if previous President has been nominated Chancellor
-        if player_id == self.previous_president:
-            # term-limited
+        if player_id != self.previous_president and player_id != self.previous_chancellor:
+            return True
+        elif (player_id == self.previous_president) and (len(self.players) == 5):
+            return True
+        elif player_id == self.previous_president:
+            return False
+        elif player_id == self.previous_chancellor:
             return False
         
-        # check if previous Chancellor has been nominated Chancellor again
-        if player_id == self.previous_chancellor:
-            # term-limited
-            return False
-        
-        # nomination OK
         return True
 
     def vote(self, player_id: int, vote: str):
@@ -251,6 +261,7 @@ class Game:
     def election(self):
         self.state = GameState.ELECTION
 
+
     def force_next_policy(self):
         """Enacts the next policy in the deck due to 3 consecutive failed elections."""
 
@@ -309,14 +320,59 @@ class Game:
         
         return False
 
+    def investigate_loyalty(self, player_id):
+        """Returns the Party Membership of the Player with player_id."""
+
+        player_to_investigate = self.get_player(player_id)
+        player_to_investigate: Player
+
+        if player_to_investigate.investigated:
+            return False
+
+        return player_to_investigate.get_party()
+    
+    def call_special_election(self, player_id):
+
+        if player_id != self.incumbent_president.get_id():
+            return False
+        
+        # have President select next President
+        # start election as normal
+
+    def policy_peek(self):
+
+        if len(self.policy_tile_deck) < 3:
+            self.refill_policy_tile_deck()
+
+        
+        policy_1 = self.policy_tile_deck[0]
+        policy_2 = self.policy_tile_deck[1]
+        policy_3 = self.policy_tile_deck[2]
+
+        return policy_1, policy_2, policy_3
+    
+    def execution(self, player_id: int):
+
+        # prompt President to choose a player to execute
+        
+        player_to_execute = self.get_player(player_id)
+        player_to_execute.dead = True
+
+        self.dead_players = [player for player in self.players if player.dead]
+
+
+
+
 
 class Player:
     """Represents a Player in a Secret Hitler game."""
 
-    def __init__(self, player_id):
-        self.player_id = player_id # will be user's Discord ID
+    def __init__(self, player_id: int, player_name: str):
+        self.player_id = player_id
+        self.name = player_name
         self.role = None
         self.dead = False
+        self.investigated = False
     
     def get_party(self):
         if self.role == "Fascist" or self.role == "Hitler":
@@ -330,14 +386,15 @@ class Player:
         return self.player_id
 
 class GameState(Enum):
-    GAME_STARTING = 1
-    NOMINATION = 2
-    ELECTION = 3
-    LEGISLATIVE_PRESIDENT = 4
-    LEGISLATIVE_CHANCELLOR = 5
-    VETO = 6
-    INVESTIGATION = 7
-    SPECIAL_ELECTION = 8
-    POLICY_PEEK = 9
-    EXECUTION = 10
-    GAME_OVER = 11
+    LOBBY = 1
+    GAME_STARTING = 2
+    NOMINATION = 3
+    ELECTION = 4
+    LEGISLATIVE_PRESIDENT = 5
+    LEGISLATIVE_CHANCELLOR = 6
+    VETO = 7
+    INVESTIGATION = 8
+    SPECIAL_ELECTION = 9
+    POLICY_PEEK = 10
+    EXECUTION = 11
+    GAME_OVER = 12

@@ -1,62 +1,63 @@
 import discord
 from discord.ext import commands
 from discord.ext.commands import Context
-from src import game
+import sys
+sys.path.append('src')
+from game import Game
 
 class SHGameMaintenance(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.active_games = {}
         self.guild = self.bot.guilds[0]
-        self.category = discord.utils.get(self.guild.categories, name="Secret Hitler")
+        # self.category = discord.utils.get(self.guild.categories, name="Secret Hitler")
 
     @commands.command()
     @commands.is_owner()
-    async def r(self, context):
-        '''
-        Reloads the commands
-        '''
+    async def r(self, context: Context):
+        """Reloads the commands"""
+
         await self.bot.reload_extension('cogs.sh_game_maintenance')
         print('Done reloading!')
 
-    @commands.command()
+    @commands.command(aliases=('sh','startsh','shstart'))
     async def create_game(self, context: Context):
-        '''
-        Create a new game and corresponding text channel
-        '''
-        print('create a game')
-        admin_id = context.message.author.id
-        channel_id = context.message.channel.id
-        game_id = "Game_" + str(len(self.active_games) + 1)
-        max_players = 10 # hard coded for now
+        """Creates a new game and corresponding text channel."""
 
+        print('creating a game')
+        
+        admin_id = context.message.author.id
+        
+        # check if player is host of another active game
         for game in self.active_games.values():
             game: Game
             if game.admin_id == admin_id:
                 await context.channel.send(f"<@{admin_id}>, you are the host of a game that's already in progress. Please issue the `.delete_game` command before creating a new one.")
                 return
-
-        game = Game(channel_id, game_id, admin_id, max_players)
+        
+        guild = context.channel.guild
+        game_id = str(len(self.active_games) + 1)
+        game = Game(game_id, admin_id)
         self.active_games[game_id] = game
 
-        # if there is no Secret Hitler category, create one
-        if self.category is None:
-            self.category = await self.guild.create_category(name=f"Secret Hitler")
+        # create channel category and text channel for game instance
+        category_name = f"Secret Hitler Game {game.get_id()}"
+        channel_name = f"SH main"
 
-        # make sure the text channel does not exist
-        if discord.utils.get(self.category.text_channels, name=f'SH_{game_id}') is not None:
-            print('The game channel already exists, is that an error...?')
-            return
-        
-        await self.category.create_text_channel(f'SH_{game_id}')
+        if not self.category_exists(guild, category_name):
+            game.category = await guild.create_category(name=category_name)
+            game.text_channel = await guild.create_text_channel(channel_name,category=game.category)
 
-        # now prompt people to join the game using buttons
+        # await game.text_channel.send("Welcome to Secret Hitler!\nRules: https://www.secrethitler.com/assets/Secret_Hitler_Rules.pdf")
+        self.create_lobby_embed(game)
+        await game.text_channel.send(embed=game.lobby_embed)
+        await context.channel.send("Game channels have been created.")
     
+
     @commands.command()
     async def delete_game(self, context: Context):
-        '''
-        Delete a game and the corresponding text channel
-        '''
+        """Deletes a game and the corresponding text channel."""
+        
         print('delete a game')
         author_id = context.message.author.id
 
@@ -86,6 +87,32 @@ class SHGameMaintenance(commands.Cog):
         # user wasn't an admin of any game, so they can't delete anything
         await context.channel.send(f'<@{author_id}>, you are not the host of any active games.')
         
+    def text_channel_exists(self, guild: discord.Guild, name: str) -> bool:
+        """Check if game text channel exists. If so, return True,\
+            otherwise False."""
+        
+        for channel in guild.channels:
+            if channel.name == name:
+                return True
+        return False
+
+    def category_exists(self, guild: discord.Guild, name: str) -> bool:
+        """Check if channel category exists. If so, return True,\
+            otherwise False."""
+        
+        for category in guild.categories:
+            if category.name == name:
+                return True
+        return False
+    
+    def create_lobby_embed(self, game: Game):
+        title = f"Secret Hitler Game Lobby (Game {game.get_id()})"
+
+        game.lobby_embed = discord.Embed(title=title,color=Game.SH_ORANGE)
+        game.lobby_embed.add_field(name=f"# of Players Required:",value=f"{Game.MIN_PLAYERS}-{Game.MAX_PLAYERS}")
+        game.lobby_embed.add_field(name="Players:",value="\n".join([player.name for player in game.players]))
+
+
 
 async def setup(bot):
     await bot.add_cog(SHGameMaintenance(bot))
