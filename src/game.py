@@ -65,9 +65,9 @@ class Game:
         self.election_tracker = 0
 
         # server modifications
-        self.category = None
-        self.text_channel = None
-        self.lobby_embed = None
+        self.category : discord.CategoryChannel = None
+        self.text_channel : discord.TextChannel = None
+        self.lobby_embed_msg : discord.Message = None
         
         self.add_player(admin_id,'freaky Mike')
 
