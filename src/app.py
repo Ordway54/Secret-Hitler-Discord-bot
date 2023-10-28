@@ -33,7 +33,6 @@ async def send_player_roles(game: Game):
             msg = await user.send(content=f"Your role: {player.role}\nYour party membership: {player.get_party()}",delete_after=8)
 
 
-
 @bot.event
 async def on_ready():
     print(f'We have logged in as {bot.user}')
@@ -79,11 +78,6 @@ async def on_reaction_add(reaction: discord.Reaction, user: discord.User):
             # all players have voted, end voting sequence
             game.tally_votes()
             
-
-@bot.event
-async def on_button_click(interaction: discord.Interaction):
-    print('this was triggered', type(interaction))
-
 
 token = os.environ.get('BOT_TOKEN')
 if token is None:

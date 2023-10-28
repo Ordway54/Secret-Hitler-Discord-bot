@@ -36,7 +36,6 @@ class SHGameMaintenance(commands.Cog):
         game_id = str(len(self.active_games) + 1)
         game = Game(game_id, admin_id)
         self.active_games[game_id] = game
-        print(self.active_games)
 
         # create channel category and text channel for game instance
         category_name = f"Secret Hitler Game {game.get_id()}"
@@ -47,9 +46,9 @@ class SHGameMaintenance(commands.Cog):
             game.text_channel = await guild.create_text_channel(channel_name,category=game.category)
 
         # await game.text_channel.send("Welcome to Secret Hitler!\nRules: https://www.secrethitler.com/assets/Secret_Hitler_Rules.pdf")
-        self.create_lobby_embed(game)
-        embed = game.lobby_embed_msg.embeds[0]
-        await game.text_channel.send(embed=embed, view=GameLobbyView(game))
+        lobby_embed = self.create_lobby_embed(game)
+
+        game.lobby_embed_msg = await game.text_channel.send(embed=lobby_embed,view=GameLobbyView(game))
         await context.channel.send("Game channels have been created.")
     
 
@@ -77,7 +76,7 @@ class SHGameMaintenance(commands.Cog):
                     return
                 
                 self.active_games.pop(game.game_id)
-                print(self.active_games)
+                await context.message.reply(f"Your active game has been deleted. You can now create a new one if you wish.")
                 return
 
         await context.channel.send(f'<@{author_id}>, you are not the host of any active games.')
@@ -93,7 +92,8 @@ class SHGameMaintenance(commands.Cog):
         await context.channel.send(embed=terms_embed)
 
     async def edit_embed_player_list(self):
-        self.game.lo
+        pass
+    
 
     def text_channel_exists(self, guild: discord.Guild, name: str) -> bool:
         """Check if game text channel exists. If so, return True,\
@@ -114,17 +114,27 @@ class SHGameMaintenance(commands.Cog):
         return False
     
     def create_lobby_embed(self, game: Game):
+        """Returns a Game Lobby Embed object.
+        
+        Params:
+        game: a Game object
+        
+        Returns:
+        discord.Embed"""
+
         title = f"Secret Hitler Game Lobby (Game {game.get_id()})"
 
-        game.lobby_embed = discord.Embed(title=title,color=Game.SH_ORANGE)
-        game.lobby_embed.add_field(name=f"# of Players Required:",
+        lobby_embed = discord.Embed(title=title,color=Game.SH_ORANGE)
+        lobby_embed.add_field(name=f"# of Players Required:",
                                    value=f"{Game.MIN_PLAYERS}-{Game.MAX_PLAYERS}",
                                    inline=False)
-        game.lobby_embed.add_field(name="Players:",value="\n".join([player.name for player in game.players]))
+        lobby_embed.add_field(name="Players:",value="\n".join([player.name for player in game.players]))
+
+        return lobby_embed
 
 
 class GameLobbyView(discord.ui.View):
-    """Represents a Game Lobby embed View."""
+    """Represents a Game Lobby View."""
     
     def __init__(self, game: Game):
         super().__init__()
@@ -134,21 +144,24 @@ class GameLobbyView(discord.ui.View):
 
     @discord.ui.button(label="Join Lobby", style=discord.ButtonStyle.green)
     async def join_lobby(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if self.game.lobby_embed is not None:
-
-            self.game.lobby_embed.set_field_at(1,name="Toast is good.",value="\n".join([str(player.name) for player in self.game.players]))
-            # self.embed.add_field(name="Players in Lobby:",value="\n".join(self.players))
-            await self.game.lobby_embed.edit(embed=self.game.lobby_embed)
+        # await interaction.message.reply("You joined the game lobby.")
+        self.game.add_player(interaction.user.id, interaction.user.name)
+        embed = self.game.lobby_embed_msg.embeds[0]
+        embed.set_field_at(1,name="Players in Lobby",value="\n".join([player.name for player in self.game.players]))
+        await self.game.lobby_embed_msg.edit(embed=embed)
     
         
     @discord.ui.button(label="Leave Lobby", style=discord.ButtonStyle.red)
     async def leave_lobby(self, interaction: discord.Interaction, button: discord.ui.Button):
-        if self.embed_message is not None:
-            if interaction.user.name in self.players:
-                self.players.remove(interaction.user.name)
-                self.embed.clear_fields()
-                self.embed.add_field(name="Players in Lobby:",value="\n".join(self.players))
-                await self.embed_message.edit(embed=self.embed)
+        # await interaction.message.reply("You left the game lobby.")
+        self.game.remove_player(interaction.user.id)
+        embed = self.game.lobby_embed_msg.embeds[0]
+        embed.set_field_at(1,name="Players in Lobby",value='\n'.join([player.name for player in self.game.players]))
+        await self.game.lobby_embed_msg.edit(embed=embed)
+    
+    @discord.ui.button(label="Abandon Lobby",style=discord.ButtonStyle.red)
+    async def abandon_lobby(self, interaction: discord.Interaction, button: discord.ui.Button):
+        pass
 
 
 

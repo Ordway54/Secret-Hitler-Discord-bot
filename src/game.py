@@ -359,7 +359,14 @@ class Game:
         player_to_execute.dead = True
 
         self.dead_players = [player for player in self.players if player.dead]
+    
+    def update_game_lobby_embed(self, player: discord.User, add_to_game: bool):
+        
+        if add_to_game:
+            self.add_player(player.id,player.name)
 
+        else:
+            self.remove_player(player.id)
 
 
 
