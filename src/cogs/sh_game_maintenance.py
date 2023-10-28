@@ -50,6 +50,9 @@ class SHGameMaintenance(commands.Cog):
 
         game.lobby_embed_msg = await game.text_channel.send(embed=lobby_embed,view=GameLobbyView(game))
         await context.channel.send("Game channels have been created.")
+
+        # the following line is for testing purposes only
+        await context.channel.send("Test", view=PresidentialPowerView(game,1))
     
 
     @commands.command(name="delgame")
@@ -76,7 +79,8 @@ class SHGameMaintenance(commands.Cog):
                     return
                 
                 self.active_games.pop(game.game_id)
-                await context.message.reply(f"Your active game has been deleted. You can now create a new one if you wish.")
+                # commented out for testing only
+                # await context.author.send(f"Your active SH game has been deleted. You can now create a new one if you wish.", delete_after=30)
                 return
 
         await context.channel.send(f'<@{author_id}>, you are not the host of any active games.')
@@ -141,7 +145,6 @@ class GameLobbyView(discord.ui.View):
         self.game = game
 
     
-
     @discord.ui.button(label="Join Lobby", style=discord.ButtonStyle.green)
     async def join_lobby(self, interaction: discord.Interaction, button: discord.ui.Button):
         # await interaction.message.reply("You joined the game lobby.")
@@ -162,6 +165,53 @@ class GameLobbyView(discord.ui.View):
     @discord.ui.button(label="Abandon Lobby",style=discord.ButtonStyle.red)
     async def abandon_lobby(self, interaction: discord.Interaction, button: discord.ui.Button):
         pass
+
+class PresidentialPowerView(discord.ui.View):
+    """Represents the View applied when a Presidential Power is being exercised."""
+    
+    POWERS = {
+        1 : "Investigate Loyalty",
+        2 : "Call Special Election",
+        3 : "Policy Peek",
+        4 : "Execution"}
+
+    def __init__(self, game: Game, pres_power: int):
+        """Instantiates the View.
+        
+        Params:
+        game: an instance of the Game class
+        pres_power: an int representing the type of Presidential Power being used."""
+        super().__init__()
+        self.game = game
+        self.pres_power = PresidentialPowerView.POWERS.get(pres_power,None)
+        self.create_buttons()
+    
+    def create_buttons(self):
+
+        if self.pres_power == "Investigate Loyalty":
+            player_names = self.game.get_investigatable_player_names()
+
+            for name, id in player_names:
+                btn = discord.ui.Button(style=discord.ButtonStyle.blurple,
+                                        custom_id=str(id),
+                                        label=name)
+                self.add_item(btn)
+
+
+        elif self.pres_power == "Call Special Election":
+            pass
+        elif self.pres_power == "Policy Peek":
+            pass
+        elif self.pres_power == "Execution":
+            pass
+        else:
+            return False
+
+    
+    # @discord.ui.button(label="Join Lobby", style=discord.ButtonStyle.green)
+    # async def join_lobby(self, interaction: discord.Interaction, button: discord.ui.Button):
+    #     # placeholder function
+    #     pass
 
 
 

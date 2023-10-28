@@ -30,8 +30,18 @@ class Game:
     MAX_PLAYERS = 10
 
     def __init__(self, game_id, admin_id):
-        self.players = []
-        self.dead_players = []
+        # self.players : [Player] = []
+
+        ### start of testing
+        self.players = [Player(1,'Justin'),Player(2,'Nick'),Player(3,'Chris')]
+        a = Player(4,'Joe')
+        a.investigated = False
+        self.players.append(a)
+        self.incumbent_president : Player = self.players[2] # for testing
+
+
+        ### end of testing
+        self.dead_players : [Player] = []
 
         self.votes = {}
 
@@ -39,20 +49,18 @@ class Game:
         self.liberal_policies_enacted = 0
 
         self.president_rotation_index : int = 0
-        self.incumbent_president : Player = None
-        # self.nominated_president : Player = None
+        self.nominated_president : Player = None
+        # self.incumbent_president : Player = None commented out for testing only
         self.president : Player = None
         self.previous_president : Player = None
 
-        # self.nominated_chancellor : Player = None
         self.incumbent_chancellor : Player = None
         self.previous_chancellor : Player = None
 
         self.state = GameState.LOBBY
         self.admin_id = admin_id
         self.game_id = game_id
-        self.max_players = 10
-        self.min_players = 5
+
         self.veto_power_enabled = False
 
         self.policy_tile_deck = ['Liberal','Liberal','Liberal','Liberal',
@@ -61,7 +69,7 @@ class Game:
                                 'Fascist','Fascist','Fascist','Fascist',
                                 'Fascist']
         
-        self.discarded_policy_tiles = []
+        self.discarded_policy_tiles : [str] = []
         self.election_tracker = 0
 
         # server modifications
@@ -72,24 +80,35 @@ class Game:
         self.add_player(admin_id,'freaky Mike')
 
     def add_player(self, player_id: int, player_name: str):
-        """Adds a player to the Game."""
+        """Adds a player to the Game.
+        
+        Adds a player to the game if they aren't already in the game.
+        
+        Params:
+        player_id: the player's Discord ID
+        player_name: the player's Discord name"""
 
         player_count = len(self.players)
+        player_not_in_game = player_id not in self.get_player_IDs()
 
-        if player_count == self.max_players:
-            return False
-        else:
-            self.players.append(Player(player_id,player_name))
-            return True
+        if player_not_in_game:
+            if player_count == Game.MAX_PLAYERS:
+                return False
+            else:
+                self.players.append(Player(player_id,player_name))
+                return True
     
     def remove_player(self, player_id):
         """Removes a player from the Game."""
 
-        for player in self.players:
-            player: Player
-            if player_id == player.get_id():
-                self.players.remove(player)
-                return
+        player_in_game = player_id in self.get_player_IDs()
+
+        if player_in_game:
+            for player in self.players:
+                player: Player
+                if player_id == player.get_id():
+                    self.players.remove(player)
+                    return
         return False
     
     def get_player(self, player_id):
@@ -103,6 +122,10 @@ class Game:
     
     def get_players(self):
         return self.players
+    
+    def get_player_IDs(self) -> list:
+        """Returns a list of player IDs for players currently in the game."""
+        return [player.get_id() for player in self.players]
     
     def get_id(self):
         return self.game_id
@@ -121,25 +144,31 @@ class Game:
         shuffling the policy tile deck, and randomly assigning a role\
         to each player.
         """
-        self.state = GameState.GAME_STARTING
 
-        if len(self.players) < self.max_players:
+        player_count = len(self.players)
+        
+        if player_count < Game.MIN_PLAYERS:
             print("Game not started. Not enough players.")
             return False
+        elif player_count > Game.MAX_PLAYERS:
+            print("Game not started. Too many players.")
+            return False
+        
+        self.state = GameState.GAME_STARTING
         
         random.shuffle(self.players)
         random.shuffle(self.policy_tile_deck)
 
-        roles = configuration[self.max_players]["roles"]
+        roles = configuration[player_count]["roles"]
         random.shuffle(roles)
 
         # assign player roles
-        for i in range(self.max_players):
+        for i in range(len(roles)):
             player: Player = self.players[i]
             player.role = roles[i]
 
         # select first Presidential candidate
-        self.president = self.players[0]
+        self.nominated_president = self.players[0]
 
         self.state = GameState.NOMINATION
     
@@ -320,16 +349,26 @@ class Game:
         
         return False
 
-    def investigate_loyalty(self, player_id):
-        """Returns the Party Membership of the Player with player_id."""
+    def get_investigatable_player_names(self):
+        """
+        Returns a list of players who are eligible to be\ 
+        investigated by the 'Investigate Loyalty' Presidential Power.
 
-        player_to_investigate = self.get_player(player_id)
-        player_to_investigate: Player
+        The returned list consists of (player.name, player.id) tuples.
+        """
+    
+        players = []
 
-        if player_to_investigate.investigated:
-            return False
+        for player in self.players:
+            player: Player
+            is_president = player.get_id() == self.incumbent_president.get_id()
+            is_investigatable = player.investigated == False
 
-        return player_to_investigate.get_party()
+            if not is_president and is_investigatable:
+                players.append((player.name, player.get_id()))
+        
+        return players
+        
     
     def call_special_election(self, player_id):
 
