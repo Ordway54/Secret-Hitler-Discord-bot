@@ -33,11 +33,12 @@ class Game:
         # self.players : [Player] = []
 
         ### start of testing
-        self.players = [Player(1,'Justin'),Player(2,'Nick'),Player(3,'Chris')]
-        a = Player(4,'Joe')
+        self.players = [Player(547520456186658836,'Justin'),Player(2,'Nick'),Player(269279755772231699,'Chris')]
+        a = Player(581116327847264256,'Joe')
         a.investigated = False
+        a.role = 'Hitler'
         self.players.append(a)
-        self.incumbent_president : Player = self.players[2] # for testing
+        self.incumbent_president : Player = self.players[0] # for testing
 
 
         ### end of testing
@@ -111,7 +112,7 @@ class Game:
                     return
         return False
     
-    def get_player(self, player_id):
+    def get_player(self, player_id: int):
         """Returns a Player instance matching player_id."""
 
         for player in self.players:

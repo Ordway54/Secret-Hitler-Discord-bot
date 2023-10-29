@@ -195,6 +195,7 @@ class PresidentialPowerView(discord.ui.View):
                 btn = discord.ui.Button(style=discord.ButtonStyle.blurple,
                                         custom_id=str(id),
                                         label=name)
+                btn.callback = self.cb_investigate_loyalty
                 self.add_item(btn)
 
 
@@ -207,11 +208,29 @@ class PresidentialPowerView(discord.ui.View):
         else:
             return False
 
-    
-    # @discord.ui.button(label="Join Lobby", style=discord.ButtonStyle.green)
-    # async def join_lobby(self, interaction: discord.Interaction, button: discord.ui.Button):
-    #     # placeholder function
-    #     pass
+
+    async def cb_investigate_loyalty(self,interaction: discord.Interaction):
+        """A callback function for the Investigate Loyalty buttons."""
+        
+        user_is_president = interaction.user.id == self.game.incumbent_president.get_id()
+        
+        if user_is_president:
+            # the custom_id attribute of the button == the id of the player named on its label
+            player_id = int(interaction.data.get('custom_id'))
+            player_to_investigate = self.game.get_player(player_id)
+
+            msg = (
+                f"""
+                You chose to investigate {player_to_investigate.name}.
+                They are a member of the {player_to_investigate.get_party()} party.\n
+                **Remember:** You may choose to share this information (or 
+                lie about it!) with other players, but you may **not** show 
+                this message as proof in any way, shape, or form, to any other player.
+                """)
+            
+            await interaction.user.send(msg, delete_after=15)
+            await interaction.message.channel.send(
+                f"""President {interaction.user.name} chose to investigate the party loyalty of {player_to_investigate.name}!""")
 
 
 
