@@ -164,7 +164,7 @@ class Game:
         """
         Returns a list of players who are eligible to be nominated
         President in a Special Election phase.
-        
+
         Returns:
         A list of player tuples (player_name, player_id).
         """
@@ -432,6 +432,7 @@ class Game:
         # start election as normal
 
     def policy_peek(self):
+        """Returns a tuple containing the top 3 policies in the policy tile deck."""
 
         if len(self.policy_tile_deck) < 3:
             self.refill_policy_tile_deck()

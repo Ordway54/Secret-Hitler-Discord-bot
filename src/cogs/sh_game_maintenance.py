@@ -5,13 +5,23 @@ import sys
 sys.path.append('src')
 from game import Game, GameState
 
-# constants
-INVESTIGATE_LOYALTY = "Investigate Loyalty"
-SPECIAL_ELECTION = "Call Special Election"
-POLICY_PEEK = "Policy Peek"
-EXECUTION = "Execution"
+# Testing constants
+DEL_AFTER_TIME = 10
 
 class SHGameMaintenance(commands.Cog):
+
+    NO_SHARE_WARNING = ("""
+                        **Remember:** You may choose to share this information (or 
+                        lie about it!) with other players, but you may **not** show/share 
+                        this message as proof in any way, shape, or form, to any other player.
+                        """)
+    
+    INVESTIGATE_LOYALTY = "Investigate Loyalty"
+    SPECIAL_ELECTION = "Call Special Election"
+    POLICY_PEEK = "Policy Peek"
+    EXECUTION = "Execution"
+
+
     def __init__(self, bot: Bot):
         self.bot = bot
         self.active_games = {}
@@ -188,7 +198,7 @@ class GameLobbyView(discord.ui.View):
         if interaction.user.id == self.game.admin_id:
             await self.game_manager.delete_game(self.game)
         else:
-            await interaction.response.send_message(content=f"{interaction.user.mention}, only the lobby host can abandon the lobby.",delete_after=15)
+            await interaction.response.send_message(content=f"{interaction.user.mention}, only the lobby host can abandon the lobby.",delete_after=DEL_AFTER_TIME)
     
     @discord.ui.button(label="Start Game",style=discord.ButtonStyle.blurple)
     async def start_game(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -200,9 +210,9 @@ class GameLobbyView(discord.ui.View):
                 await interaction.response.send_message(content="Starting game!")
             else:
                 await interaction.response.send_message(
-                    content=f"Not enough players in lobby. A minimum of {Game.MIN_PLAYERS} players is needed to start a game.",delete_after=15)
+                    content=f"Not enough players in lobby. A minimum of {Game.MIN_PLAYERS} players is needed to start a game.",delete_after=DEL_AFTER_TIME)
         else:
-            await interaction.response.send_message(content=f"Only the lobby host (<@{self.game.admin_id}>) can start the game.", delete_after=15)
+            await interaction.response.send_message(content=f"Only the lobby host (<@{self.game.admin_id}>) can start the game.", delete_after=DEL_AFTER_TIME)
 
 
 class PresidentialPowerView(discord.ui.View):
@@ -270,13 +280,11 @@ class PresidentialPowerView(discord.ui.View):
                 **FOR THE EYES OF PRESIDENT {president_name.upper()} ONLY**\n
                 President {president_name},\nYou chose to investigate {player_to_investigate.name}.
                 They are a member of the {player_to_investigate.get_party()} party.\n
-                **Remember:** You may choose to share this information (or 
-                lie about it!) with other players, but you may **not** show/share 
-                this message as proof in any way, shape, or form, to any other player.
+                {SHGameMaintenance.NO_SHARE_WARNING}
                 """)
             
             # DM investigated player's party loyalty to President
-            await interaction.user.send(msg, delete_after=15)
+            await interaction.user.send(msg, delete_after=DEL_AFTER_TIME)
 
             await interaction.message.channel.send(
                 f"""President {interaction.user.name} chose to investigate the party loyalty of {player_to_investigate.name}!""")
@@ -297,6 +305,37 @@ class PresidentialPowerView(discord.ui.View):
                     to run in this upcoming Special Election!"""))
             
             self.game.state = GameState.SPECIAL_ELECTION
+
+    async def cb_policy_peek(self, interaction: discord.Interaction):
+        """A callback function for the Policy Peek buttons."""
+        
+        user_is_president = interaction.user.id == self.game.incumbent_president.get_id()
+
+        if user_is_president:
+            self.game.state = GameState.POLICY_PEEK
+
+            p1, p2, p3 = self.game.policy_peek()
+            pres_name = interaction.user.name
+
+            msg = (f"""
+                    **FOR THE EYES OF PRESIDENT {pres_name.upper()} ONLY**\n
+                    You peek at the top 3 policy tiles in the deck and see the following policies: {p1}, {p2}, {p3}\n
+                    {SHGameMaintenance.NO_SHARE_WARNING}
+                    """)
+            
+            await interaction.user.send(content=msg,delete_after=DEL_AFTER_TIME)
+            await interaction.message.channel.send(content=(
+                f"""President {pres_name} takes the top 3 policy tiles in the\
+                    policy tile deck and looks at them in secret before\
+                    returning them to the top of the deck with\
+                    their order unchanged."""))
+            
+            self.game.state = GameState.NOMINATION
+        
+
+    async def cb_execution(self, interaction: discord.Interaction):
+        """A callback function for the Execution buttons."""
+        pass
 
 
 
