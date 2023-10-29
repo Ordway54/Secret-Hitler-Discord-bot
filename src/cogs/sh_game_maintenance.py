@@ -1,12 +1,18 @@
 import discord
 from discord.ext import commands
-from discord.ext.commands import Context
+from discord.ext.commands import Context, Bot
 import sys
 sys.path.append('src')
-from game import Game
+from game import Game, GameState
+
+# constants
+INVESTIGATE_LOYALTY = "Investigate Loyalty"
+SPECIAL_ELECTION = "Call Special Election"
+POLICY_PEEK = "Policy Peek"
+EXECUTION = "Execution"
 
 class SHGameMaintenance(commands.Cog):
-    def __init__(self, bot):
+    def __init__(self, bot: Bot):
         self.bot = bot
         self.active_games = {}
 
@@ -48,15 +54,15 @@ class SHGameMaintenance(commands.Cog):
         # await game.text_channel.send("Welcome to Secret Hitler!\nRules: https://www.secrethitler.com/assets/Secret_Hitler_Rules.pdf")
         lobby_embed = self.create_lobby_embed(game)
 
-        game.lobby_embed_msg = await game.text_channel.send(embed=lobby_embed,view=GameLobbyView(game))
+        game.lobby_embed_msg = await game.text_channel.send(embed=lobby_embed,view=GameLobbyView(game,self))
         await context.channel.send("Game channels have been created.")
 
         # the following line is for testing purposes only
-        await context.channel.send("Test", view=PresidentialPowerView(game,1))
+        await context.channel.send("Test", view=PresidentialPowerView(game,INVESTIGATE_LOYALTY))
     
 
     @commands.command(name="delgame")
-    async def delete_game(self, context: Context):
+    async def user_delete_game(self, context: Context):
         """Deletes a game and the server modifications associated with it."""
         # tested and working as of 10/26/23
         author_id = context.message.author.id
@@ -117,6 +123,22 @@ class SHGameMaintenance(commands.Cog):
                 return True
         return False
     
+    async def delete_game(self, game: Game):
+        """Deletes a Game instance and the server modifications associated with it.
+        
+        This method was created to allow for deleting the Game instance programmatically
+        rather than by a Discord user invoking the command by sending a message."""
+        
+        print("Game deleted programmatically.")
+        await game.text_channel.delete()
+        await game.category.delete()
+
+        for game_id in self.active_games.keys():
+            if game_id == game.get_id():
+                self.active_games.pop(game_id)
+                break
+
+    
     def create_lobby_embed(self, game: Game):
         """Returns a Game Lobby Embed object.
         
@@ -140,14 +162,14 @@ class SHGameMaintenance(commands.Cog):
 class GameLobbyView(discord.ui.View):
     """Represents a Game Lobby View."""
     
-    def __init__(self, game: Game):
+    def __init__(self, game: Game, game_manager: SHGameMaintenance):
         super().__init__()
         self.game = game
+        self.game_manager = game_manager
 
     
     @discord.ui.button(label="Join Lobby", style=discord.ButtonStyle.green)
     async def join_lobby(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # await interaction.message.reply("You joined the game lobby.")
         self.game.add_player(interaction.user.id, interaction.user.name)
         embed = self.game.lobby_embed_msg.embeds[0]
         embed.set_field_at(1,name="Players in Lobby",value="\n".join([player.name for player in self.game.players]))
@@ -156,7 +178,6 @@ class GameLobbyView(discord.ui.View):
         
     @discord.ui.button(label="Leave Lobby", style=discord.ButtonStyle.red)
     async def leave_lobby(self, interaction: discord.Interaction, button: discord.ui.Button):
-        # await interaction.message.reply("You left the game lobby.")
         self.game.remove_player(interaction.user.id)
         embed = self.game.lobby_embed_msg.embeds[0]
         embed.set_field_at(1,name="Players in Lobby",value='\n'.join([player.name for player in self.game.players]))
@@ -164,48 +185,71 @@ class GameLobbyView(discord.ui.View):
     
     @discord.ui.button(label="Abandon Lobby",style=discord.ButtonStyle.red)
     async def abandon_lobby(self, interaction: discord.Interaction, button: discord.ui.Button):
-        pass
+        if interaction.user.id == self.game.admin_id:
+            await self.game_manager.delete_game(self.game)
+        else:
+            await interaction.response.send_message(content=f"{interaction.user.mention}, only the lobby host can abandon the lobby.",delete_after=15)
+    
+    @discord.ui.button(label="Start Game",style=discord.ButtonStyle.blurple)
+    async def start_game(self, interaction: discord.Interaction, button: discord.ui.Button):
+        user_is_host = interaction.user.id == self.game.admin_id
+        min_players_met = len(self.game.players) >= Game.MIN_PLAYERS
+
+        if user_is_host:
+            if min_players_met:
+                await interaction.response.send_message(content="Starting game!")
+            else:
+                await interaction.response.send_message(
+                    content=f"Not enough players in lobby. A minimum of {Game.MIN_PLAYERS} players is needed to start a game.",delete_after=15)
+        else:
+            await interaction.response.send_message(content=f"Only the lobby host (<@{self.game.admin_id}>) can start the game.", delete_after=15)
+
 
 class PresidentialPowerView(discord.ui.View):
     """Represents the View applied when a Presidential Power is being exercised."""
-    
-    POWERS = {
-        1 : "Investigate Loyalty",
-        2 : "Call Special Election",
-        3 : "Policy Peek",
-        4 : "Execution"}
 
-    def __init__(self, game: Game, pres_power: int):
-        """Instantiates the View.
+    def __init__(self, game: Game, pres_power: str):
+        """Instantiates the Presidential Power View.
         
         Params:
         game: an instance of the Game class
-        pres_power: an int representing the type of Presidential Power being used."""
+        pres_power: a str representing the type of Presidential Power being used."""
+
         super().__init__()
         self.game = game
-        self.pres_power = PresidentialPowerView.POWERS.get(pres_power,None)
+        self.pres_power = pres_power
         self.create_buttons()
     
     def create_buttons(self):
 
         if self.pres_power == "Investigate Loyalty":
-            player_names = self.game.get_investigatable_player_names()
+            players = self.game.get_investigatable_player_names()
 
-            for name, id in player_names:
+            for p_name, p_id in players:
                 btn = discord.ui.Button(style=discord.ButtonStyle.blurple,
-                                        custom_id=str(id),
-                                        label=name)
+                                        custom_id=str(p_id),
+                                        label=p_name)
                 btn.callback = self.cb_investigate_loyalty
                 self.add_item(btn)
 
 
         elif self.pres_power == "Call Special Election":
-            pass
+            players = self.game.get_special_election_candidates()
+
+            for p_name, p_id in players:
+                btn = discord.ui.Button(style=discord.ButtonStyle.blurple,
+                                        custom_id=str(p_id),
+                                        label=p_name)
+                btn.callback = self.cb_special_election
+                self.add_item(btn)
+
+
         elif self.pres_power == "Policy Peek":
             pass
         elif self.pres_power == "Execution":
             pass
         else:
+            print(f"{self.pres_power} is not a recognized Presidential Power.")
             return False
 
 
@@ -218,19 +262,41 @@ class PresidentialPowerView(discord.ui.View):
             # the custom_id attribute of the button == the id of the player named on its label
             player_id = int(interaction.data.get('custom_id'))
             player_to_investigate = self.game.get_player(player_id)
+            player_to_investigate.investigated = True
+            president_name = interaction.user.name
 
             msg = (
                 f"""
-                You chose to investigate {player_to_investigate.name}.
+                **FOR THE EYES OF PRESIDENT {president_name.upper()} ONLY**\n
+                President {president_name},\nYou chose to investigate {player_to_investigate.name}.
                 They are a member of the {player_to_investigate.get_party()} party.\n
                 **Remember:** You may choose to share this information (or 
-                lie about it!) with other players, but you may **not** show 
+                lie about it!) with other players, but you may **not** show/share 
                 this message as proof in any way, shape, or form, to any other player.
                 """)
             
+            # DM investigated player's party loyalty to President
             await interaction.user.send(msg, delete_after=15)
+
             await interaction.message.channel.send(
                 f"""President {interaction.user.name} chose to investigate the party loyalty of {player_to_investigate.name}!""")
+
+    async def cb_special_election(self, interaction: discord.Interaction):
+        """A callback function for the Call Special Election buttons."""
+        
+        user_is_president = interaction.user.id == self.game.incumbent_president.get_id()
+
+        if user_is_president:
+            # the custom_id attribute of the button == the id of the player named on its label
+            player_id = int(interaction.data.get('custom_id'))
+            nominated_pres = self.game.get_player(player_id)
+            self.game.nominated_president = nominated_pres
+
+            await interaction.message.channel.send(content=(
+                f"""Incumbent President {self.game.incumbent_president.name} has nominated {nominated_pres.name}
+                    to run in this upcoming Special Election!"""))
+            
+            self.game.state = GameState.SPECIAL_ELECTION
 
 
 

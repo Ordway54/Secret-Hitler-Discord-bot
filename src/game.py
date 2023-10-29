@@ -39,6 +39,7 @@ class Game:
         a.role = 'Hitler'
         self.players.append(a)
         self.incumbent_president : Player = self.players[0] # for testing
+        self.admin_id = 1
 
 
         ### end of testing
@@ -59,8 +60,8 @@ class Game:
         self.previous_chancellor : Player = None
 
         self.state = GameState.LOBBY
-        self.admin_id = admin_id
-        self.game_id = game_id
+        # self.admin_id = admin_id commented out for testing purposes
+        self.game_id : int = game_id
 
         self.veto_power_enabled = False
 
@@ -121,14 +122,65 @@ class Game:
                 return player
         return None
     
-    def get_players(self):
-        return self.players
+    def get_players(self, names_only=False, include_president=True):
+        """Returns a list of players currently in the game.
+        
+        Params:
+        names_only: if False, a list of Player objects is returned. If True,\
+                    a list of player names is returned. Defaults to False.
+        include_president: if True, the incumbent president will be included\
+                            in the returned list. Defaults to True.
+        """
+
+        if not names_only:
+            if include_president:
+                return self.players
+            
+            else:
+                players = self.players.copy()
+
+                omit_pres = [
+                        player for player in players
+                        if player.get_id() !=
+                        self.incumbent_president.get_id()
+                        ]
+                
+                return omit_pres
+            
+        else:
+            if include_president:
+                return [player.name for player in self.players]
+            
+            else:
+                omit_pres = [
+                    player.name for player in self.players
+                    if player.get_id() != 
+                    self.incumbent_president.get_id()
+                    ]
+
+                return omit_pres
     
+    def get_special_election_candidates(self):
+        """
+        Returns a list of players who are eligible to be nominated
+        President in a Special Election phase.
+        
+        Returns:
+        A list of player tuples (player_name, player_id).
+        """
+
+        eligible = [(player.name, player.get_id()) for player in
+                    self.players if player.get_id() !=
+                    self.incumbent_president.get_id()]
+        
+        return eligible
+
     def get_player_IDs(self) -> list:
         """Returns a list of player IDs for players currently in the game."""
         return [player.get_id() for player in self.players]
     
     def get_id(self):
+        """Returns the ID of the Game instance."""
         return self.game_id
     
     def has_player(self, player_id):
