@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from discord.ext.commands import Context, Bot
+import asyncio
 import sys
 sys.path.append('src')
 from game import Game, GameState
@@ -68,7 +69,7 @@ class SHGameMaintenance(commands.Cog):
         await context.channel.send("Game channels have been created.")
 
         # the following line is for testing purposes only
-        await context.channel.send("Test", view=PresidentialPowerView(game,INVESTIGATE_LOYALTY))
+        await context.channel.send("Testing Execution sequence", view=PresidentialPowerView(game,SHGameMaintenance.EXECUTION))
     
 
     @commands.command(name="delgame")
@@ -231,6 +232,8 @@ class PresidentialPowerView(discord.ui.View):
         self.create_buttons()
     
     def create_buttons(self):
+        """Creates the buttons for the View object depending on the\
+            Presidential Power being exercised."""
 
         if self.pres_power == "Investigate Loyalty":
             players = self.game.get_investigatable_player_names()
@@ -242,7 +245,6 @@ class PresidentialPowerView(discord.ui.View):
                 btn.callback = self.cb_investigate_loyalty
                 self.add_item(btn)
 
-
         elif self.pres_power == "Call Special Election":
             players = self.game.get_special_election_candidates()
 
@@ -253,11 +255,23 @@ class PresidentialPowerView(discord.ui.View):
                 btn.callback = self.cb_special_election
                 self.add_item(btn)
 
-
         elif self.pres_power == "Policy Peek":
-            pass
+            btn = discord.ui.Button(style=discord.ButtonStyle.blurple,
+                                    label="Peek at Policies")
+            btn.callback = self.cb_policy_peek
+            self.add_item(btn)
+
         elif self.pres_power == "Execution":
-            pass
+            players = [(player.name,player.get_id()) for player
+                        in self.game.get_players(include_president=False)]
+        
+            for p_name, p_id in players:
+                btn = discord.ui.Button(style=discord.ButtonStyle.blurple,
+                                        custom_id=str(p_id),
+                                        label=p_name)
+                btn.callback = self.cb_execution
+                self.add_item(btn)
+        
         else:
             print(f"{self.pres_power} is not a recognized Presidential Power.")
             return False
@@ -269,6 +283,7 @@ class PresidentialPowerView(discord.ui.View):
         user_is_president = interaction.user.id == self.game.incumbent_president.get_id()
         
         if user_is_president:
+            self.game.state = GameState.INVESTIGATION
             # the custom_id attribute of the button == the id of the player named on its label
             player_id = int(interaction.data.get('custom_id'))
             player_to_investigate = self.game.get_player(player_id)
@@ -295,6 +310,7 @@ class PresidentialPowerView(discord.ui.View):
         user_is_president = interaction.user.id == self.game.incumbent_president.get_id()
 
         if user_is_president:
+            self.game.state = GameState.SPECIAL_ELECTION
             # the custom_id attribute of the button == the id of the player named on its label
             player_id = int(interaction.data.get('custom_id'))
             nominated_pres = self.game.get_player(player_id)
@@ -303,8 +319,6 @@ class PresidentialPowerView(discord.ui.View):
             await interaction.message.channel.send(content=(
                 f"""Incumbent President {self.game.incumbent_president.name} has nominated {nominated_pres.name}
                     to run in this upcoming Special Election!"""))
-            
-            self.game.state = GameState.SPECIAL_ELECTION
 
     async def cb_policy_peek(self, interaction: discord.Interaction):
         """A callback function for the Policy Peek buttons."""
@@ -335,7 +349,35 @@ class PresidentialPowerView(discord.ui.View):
 
     async def cb_execution(self, interaction: discord.Interaction):
         """A callback function for the Execution buttons."""
-        pass
+        
+        user_is_president = interaction.user.id == self.game.incumbent_president.get_id()
+
+        if user_is_president:
+            self.game.state = GameState.EXECUTION
+            pres_name = interaction.user.name
+            player_id = int(interaction.data.get('custom_id'))
+            chosen_player = self.game.get_player(player_id)
+            chosen_player.dead = True
+
+            async with interaction.message.channel.typing():
+                await asyncio.sleep(2)
+                await interaction.message.channel.send(
+                    f"""President {pres_name} moves toward a nearby table and reaches for a revolver resting on it. They raise the gun and point it at {chosen_player.name}.""")
+                
+                await asyncio.sleep(4)
+                await interaction.message.channel.send(
+                    f"""President {pres_name} says aloud: "I formally execute {chosen_player.name}" and fires a shot killing them instantly.""")
+                await asyncio.sleep(5)
+                if chosen_player.role == "Hitler":
+                    await interaction.message.channel.send(
+                        f"""In the aftermath, documents are found on the dead body which positively identify the deceased as Adolf Hitler. Liberals win!""")
+                    self.game.state = GameState.GAME_OVER
+                else:
+                    await interaction.message.channel.send(
+                        f"""In the aftermath, documents are found on the dead body which reveal the deceased is **not** Adolf Hitler.""")
+            
+            
+
 
 
 

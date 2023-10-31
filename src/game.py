@@ -34,7 +34,7 @@ class Game:
 
         ### start of testing
         self.players = [Player(547520456186658836,'Justin'),Player(2,'Nick'),Player(269279755772231699,'Chris')]
-        a = Player(581116327847264256,'Joe')
+        a = Player(581116327847264256,'Pat')
         a.investigated = False
         a.role = 'Hitler'
         self.players.append(a)
@@ -137,28 +137,16 @@ class Game:
                 return self.players
             
             else:
-                players = self.players.copy()
-
-                omit_pres = [
-                        player for player in players
-                        if player.get_id() !=
-                        self.incumbent_president.get_id()
-                        ]
-                
-                return omit_pres
+                return [player for player in self.players if
+                        player.get_id() != self.incumbent_president.get_id()]
             
         else:
             if include_president:
                 return [player.name for player in self.players]
             
             else:
-                omit_pres = [
-                    player.name for player in self.players
-                    if player.get_id() != 
-                    self.incumbent_president.get_id()
-                    ]
-
-                return omit_pres
+                return [player.name for player in self.players if
+                        player.get_id() != self.incumbent_president.get_id()]
     
     def get_special_election_candidates(self):
         """
