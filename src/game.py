@@ -64,6 +64,8 @@ class Game:
         self.game_id : int = game_id
 
         self.veto_power_enabled = False
+        self.president_veto_vote = None
+        self.chancellor_veto_vote = None
 
         self.policy_tile_deck = ['Liberal','Liberal','Liberal','Liberal',
                                 'Liberal','Liberal','Fascist','Fascist',
@@ -71,7 +73,7 @@ class Game:
                                 'Fascist','Fascist','Fascist','Fascist',
                                 'Fascist']
         
-        self.discarded_policy_tiles : [str] = []
+        self.discarded_policy_tiles = []
         self.election_tracker = 0
 
         # server modifications
@@ -178,6 +180,12 @@ class Game:
             if player_id == player.get_id():
                 return True
         return False
+    
+    def is_president(self, player_id: int):
+        """Returns True if player is President. False otherwise."""
+
+        return player_id == self.incumbent_president.get_id()
+        
     
     def start(self):
         """
@@ -303,30 +311,28 @@ class Game:
         if self.fascist_policies_enacted >= 5:
             self.veto_power_enabled = True
     
-    def veto(self, president_veto: bool, chancellor_veto: bool, policy_tiles: list):
-        """Allows the agenda to be veto'd if both President and Chancellor agree."""
+    def veto(self, policy_tiles: list):
+        """Handles the veto process.
         
-        if self.veto_power_enabled:
-            if all((president_veto, chancellor_veto)):
-                # veto passes
-                for tile in policy_tiles:
-                    self.discarded_policy_tiles.append(tile)
-                
-                country_in_chaos = self.advance_election_tracker()
-                if country_in_chaos:
-                    self.force_next_policy()
-                    self.reset_election_tracker()
-                    self.reset_term_limits()
-                    self.check_for_win()
-                
-                self.rotate_president()
+        Params:
+        policy_tiles: the policies to discard as a result of the veto passing."""
+        
+        for tile in policy_tiles:
+            self.discarded_policy_tiles.append(tile)
 
-            else:
-                # veto fails
-                return False
-        else:
-            # veto power is no in effect yet
-            return False
+        country_in_chaos = self.advance_election_tracker()
+
+        if country_in_chaos:
+            self.country_in_chaos()
+        
+        self.rotate_president()
+
+    def country_in_chaos(self):
+        """Handles the misgivings of a frustrated populace."""
+        
+        self.force_next_policy()
+        self.reset_election_tracker()
+        self.reset_term_limits()
 
     def election(self):
         self.state = GameState.ELECTION
@@ -402,10 +408,10 @@ class Game:
 
         for player in self.players:
             player: Player
-            is_president = player.get_id() == self.incumbent_president.get_id()
-            is_investigatable = player.investigated == False
+            president = self.is_president(player.get_id())
+            investigatable = player.investigated == False
 
-            if not is_president and is_investigatable:
+            if not president and investigatable:
                 players.append((player.name, player.get_id()))
         
         return players

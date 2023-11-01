@@ -2,6 +2,7 @@ import discord
 from discord.ext import commands
 from discord.ext.commands import Context, Bot
 import asyncio
+import re
 import sys
 sys.path.append('src')
 from game import Game, GameState
@@ -46,7 +47,10 @@ class SHGameMaintenance(commands.Cog):
         for game in self.active_games.values():
             game: Game
             if game.admin_id == admin_id:
-                await context.channel.send(f"<@{admin_id}>, you are the host of a game that's already in progress. Please issue the `.delgame` command before creating a new one.")
+                msg = self.strip_spacing(f"""<@{admin_id}>, you are the host\
+                    of a game that's already in progress. Please issue the\
+                    `.delgame` command before creating a new one.""")
+                await context.channel.send(msg)              
                 return
         
         guild = context.channel.guild
@@ -69,7 +73,9 @@ class SHGameMaintenance(commands.Cog):
         await context.channel.send("Game channels have been created.")
 
         # the following line is for testing purposes only
-        await context.channel.send("Testing Execution sequence", view=PresidentialPowerView(game,SHGameMaintenance.EXECUTION))
+        game.state = GameState.LEGISLATIVE_CHANCELLOR
+        # game.veto_power_enabled = False
+        await context.channel.send("Testing Legislative sequence", view=LegislativeSessionView(game,self))
     
 
     @commands.command(name="delgame")
@@ -114,6 +120,12 @@ class SHGameMaintenance(commands.Cog):
 
     async def edit_embed_player_list(self):
         pass
+
+    async def send_roles(self, game: Game):
+        await game.text_channel.send("Now sending roles to all players via DM!")
+
+        for player in game.players:
+            pass
     
 
     def text_channel_exists(self, guild: discord.Guild, name: str) -> bool:
@@ -168,7 +180,16 @@ class SHGameMaintenance(commands.Cog):
         lobby_embed.add_field(name="Players:",value="\n".join([player.name for player in game.players]))
 
         return lobby_embed
-
+    
+    def strip_spacing(input_string) -> str:
+        """
+        Returns input_string stripped of tab characters and line breaks so that
+        each word is separated by a single space. This is useful for\
+        eliminating the janky formatting that results when sending multiline\
+        strings as Discord messages.
+        """
+        return re.sub(r'\s+', ' ', input_string)
+        
 
 class GameLobbyView(discord.ui.View):
     """Represents a Game Lobby View."""
@@ -280,7 +301,7 @@ class PresidentialPowerView(discord.ui.View):
     async def cb_investigate_loyalty(self,interaction: discord.Interaction):
         """A callback function for the Investigate Loyalty buttons."""
         
-        user_is_president = interaction.user.id == self.game.incumbent_president.get_id()
+        user_is_president = self.game.is_president(interaction.user.id)
         
         if user_is_president:
             self.game.state = GameState.INVESTIGATION
@@ -307,7 +328,7 @@ class PresidentialPowerView(discord.ui.View):
     async def cb_special_election(self, interaction: discord.Interaction):
         """A callback function for the Call Special Election buttons."""
         
-        user_is_president = interaction.user.id == self.game.incumbent_president.get_id()
+        user_is_president = self.game.is_president(interaction.user.id)
 
         if user_is_president:
             self.game.state = GameState.SPECIAL_ELECTION
@@ -323,7 +344,7 @@ class PresidentialPowerView(discord.ui.View):
     async def cb_policy_peek(self, interaction: discord.Interaction):
         """A callback function for the Policy Peek buttons."""
         
-        user_is_president = interaction.user.id == self.game.incumbent_president.get_id()
+        user_is_president = self.game.is_president(interaction.user.id)
 
         if user_is_president:
             self.game.state = GameState.POLICY_PEEK
@@ -350,7 +371,7 @@ class PresidentialPowerView(discord.ui.View):
     async def cb_execution(self, interaction: discord.Interaction):
         """A callback function for the Execution buttons."""
         
-        user_is_president = interaction.user.id == self.game.incumbent_president.get_id()
+        user_is_president = self.game.is_president(interaction.user.id)
 
         if user_is_president:
             self.game.state = GameState.EXECUTION
@@ -376,7 +397,89 @@ class PresidentialPowerView(discord.ui.View):
                     await interaction.message.channel.send(
                         f"""In the aftermath, documents are found on the dead body which reveal the deceased is **not** Adolf Hitler.""")
             
+
+class LegislativeSessionView(discord.ui.View):
+    """Represents the View applied when a legislative session is underway."""
+
+    def __init__(self, game: Game, game_manager: SHGameMaintenance):
+        """Instantiates the legislative session View."""
+        super().__init__()
+        self.game = game
+        self.game_manager = game_manager
+        self.create_buttons()
+    
+    def create_buttons(self):
+        if self.game.state == GameState.LEGISLATIVE_PRESIDENT:
+            print("Legislative view: pres")
             
+            for i in range(1,4):
+                btn = discord.ui.Button(style=discord.ButtonStyle.blurple,
+                                        custom_id=str(i),
+                                        label=f"Discard Policy {i}")
+                self.add_item(btn)
+
+
+        elif self.game.state == GameState.LEGISLATIVE_CHANCELLOR:
+            print("Legislative view: chanc")
+            
+            for i in range(1,3):
+                btn = discord.ui.Button(style=discord.ButtonStyle.blurple,
+                                        custom_id=str(i),
+                                        label=f"Discard Policy {i}")
+                self.add_item(btn)
+            
+            if self.game.veto_power_enabled:
+                btn = discord.ui.Button(style=discord.ButtonStyle.red,
+                                        custom_id="veto",
+                                        label="Request to Veto")
+                btn.callback = self.cb_veto
+                self.add_item(btn)
+    
+    def send_to_president(self):
+        pass
+
+    def send_to_chancellor(self):
+        pass
+
+    async def cb_veto(self, interaction: discord.Interaction):
+        """A callback function for vetoing the agenda."""
+
+        user_is_chancellor = interaction.user.id == self.game.incumbent_chancellor.get_id()
+
+        if user_is_chancellor:
+            pres = self.game_manager.bot.get_user(self.game.incumbent_president.get_id())
+
+            view = discord.ui.View()
+            btn1 = discord.ui.Button(style=discord.ButtonStyle.green,custom_id="agree",label="Agree to Veto")
+            btn2 = discord.ui.Button(style=discord.ButtonStyle.red,custom_id="disagree",label="Refuse Veto")
+            btn1.callback = self.process_president_veto
+            btn2.callback = self.process_president_veto
+            view.add_item(btn1)
+            view.add_item(btn2)
+
+            await self.game.text_channel.send(f"President {pres.mention}: Chancellor {interaction.user.name} wishes to veto this agenda. Do you agree?",
+                            view=view,delete_after=DEL_AFTER_TIME)
+            
+    async def process_president_veto(self, interaction: discord.Interaction):
+        """A callback function for processing the President's option to veto."""
+
+        user_is_president = self.game.is_president(interaction.user.id)
+
+        if user_is_president:
+            choice = interaction.data.get("custom_id")
+            pres = interaction.user.name
+            chancellor = self.game_manager.bot.get_user(self.game.incumbent_chancellor.get_id())
+
+            if choice == "agree":
+                await self.game.text_channel.send(
+                    f"""President {pres} has agreed to the veto. No policy is enacted. The populace grows increasingly more frustrated. The election tracker advances by one.""")
+                self.game.veto()
+            elif choice == "disagree":
+                await self.game.text_channel.send(
+                    f"""President {pres} has refused the veto. Chancellor {chancellor.mention}, you must enact a policy.""")
+
+
+        
 
 
 
