@@ -11,8 +11,7 @@ configuration = {
             'Liberal',
             'Fascist',
             'Hitler'
-        ],
-        "Hitler_knows_fascists": True
+        ]
     },
 
     6: {
@@ -23,8 +22,7 @@ configuration = {
             'Liberal',
             'Fascist',
             'Hitler'
-        ],
-        "Hitler_knows_fascists": True
+        ]
     },
 
     7: {
@@ -36,8 +34,7 @@ configuration = {
             'Fascist',
             'Fascist',
             'Hitler'
-        ],
-        "Hitler_knows_fascists": False
+        ]
     },
 
     8: {
@@ -50,8 +47,7 @@ configuration = {
             'Fascist',
             'Fascist',
             'Hitler'
-        ],
-        "Hitler_knows_fascists": False
+        ]
     },
 
     9: {
@@ -65,8 +61,7 @@ configuration = {
             'Fascist',
             'Fascist',
             'Hitler'
-        ],
-        "Hitler_knows_fascists": False
+        ]
     },
 
     10: {
@@ -81,7 +76,6 @@ configuration = {
             'Fascist',
             'Fascist',
             'Hitler'
-        ],
-        "Hitler_knows_fascists": False
+        ]
     }
 }

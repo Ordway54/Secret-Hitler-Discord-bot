@@ -39,7 +39,7 @@ class SHGameMaintenance(commands.Cog):
     @commands.command(aliases=('sh','startsh','shstart'))
     async def create_game(self, context: Context):
         """Creates a new game and corresponding text channel."""
-        # tested and working as of 10/26/23
+
         print('creating a game')
         admin_id = context.message.author.id
         
@@ -59,8 +59,8 @@ class SHGameMaintenance(commands.Cog):
         self.active_games[game_id] = game
 
         # create channel category and text channel for game instance
-        category_name = f"Secret Hitler Game {game.get_id()}"
-        channel_name = f"SH main"
+        category_name = f"SH Game {game.get_id()}"
+        channel_name = f"main"
 
         if not self.category_exists(guild, category_name):
             game.category = await guild.create_category(name=category_name)
@@ -72,10 +72,11 @@ class SHGameMaintenance(commands.Cog):
         game.lobby_embed_msg = await game.text_channel.send(embed=lobby_embed,view=GameLobbyView(game,self))
         await context.channel.send("Game channels have been created.")
 
-        # the following line is for testing purposes only
-        game.state = GameState.LEGISLATIVE_CHANCELLOR
-        # game.veto_power_enabled = False
-        await context.channel.send("Testing Legislative sequence", view=LegislativeSessionView(game,self))
+        # the following lines for testing purposes only
+        await self.send_roles(game)
+        # game.state = GameState.LEGISLATIVE_CHANCELLOR
+        # # game.veto_power_enabled = False
+        # await context.channel.send("Testing Legislative sequence", view=LegislativeSessionView(game,self))
     
 
     @commands.command(name="delgame")
@@ -102,7 +103,6 @@ class SHGameMaintenance(commands.Cog):
                     return
                 
                 self.active_games.pop(game.game_id)
-                # commented out for testing only
                 # await context.author.send(f"Your active SH game has been deleted. You can now create a new one if you wish.", delete_after=30)
                 return
 
@@ -117,16 +117,62 @@ class SHGameMaintenance(commands.Cog):
         terms_embed = discord.Embed(title=title,description=Game.LICENSE_TERMS,url=url,color=color)
 
         await context.channel.send(embed=terms_embed)
+    
+    @commands.command(aliases=("leave","leaveall"))
+    async def leave_game(self, context: Context):
+        """Removes the command invoker from all active games they're in."""
 
-    async def edit_embed_player_list(self):
-        pass
+        user = context.message.author
+
+        for game in self.active_games.values():
+            game: Game
+            for player in game.players:
+                if user.id == player.get_id():
+                    game.players.remove(player)
+                    await context.message.add_reaction("✅")
+                    return
+        
+        # no active games with user found
+        await context.message.reply(
+            f"{user.mention}, you are not in any active games at the moment.")
+        
 
     async def send_roles(self, game: Game):
-        await game.text_channel.send("Now sending roles to all players via DM!")
+        botmsg = await game.text_channel.send(
+            "Now sending secret roles to all players. **Check your DMs!** :speech_balloon:")
+        
+        game.assign_roles()
+        Hitler = game.get_hitler()
+        Hitler_knows_fascists = True if len(game.players) < 7 else False
+        fascist_team = game.get_team("Fascist")
 
         for player in game.players:
-            pass
+            user = self.bot.get_user(player.get_id())
+            team = player.get_party()
+
+            msg = f"{player.name}, your role is **{player.role}**.\nYou are a member of the **{team}** party."
+
+            if team == "Fascist":
+                fellow_fascists = [f.name for f in fascist_team if f.name != player.name]
+
+                if player.role == "Hitler" and Hitler_knows_fascists:
+                    msg += f"\nYour fellow fascist(s): {', '.join(fellow_fascists)}"
+                
+                elif player.role != "Hitler":
+                    msg += f"\nYour fellow fascist(s): {', '.join(fellow_fascists)}"
+                    msg += f"\n**{Hitler.name} is Hitler.**"
+            
+            await game.text_channel.send(msg)
+        await botmsg.add_reaction("✅")
     
+    def player_in_game(self, player_id: int):
+
+        for game in self.active_games.values():
+            game: Game
+            for player in game.players:
+                if player_id == player.get_id():
+                    return True
+        return False
 
     def text_channel_exists(self, guild: discord.Guild, name: str) -> bool:
         """Check if game text channel exists. If so, return True,\
@@ -181,7 +227,7 @@ class SHGameMaintenance(commands.Cog):
 
         return lobby_embed
     
-    def strip_spacing(input_string) -> str:
+    def strip_spacing(self, input_string) -> str:
         """
         Returns input_string stripped of tab characters and line breaks so that
         each word is separated by a single space. This is useful for\
@@ -202,25 +248,39 @@ class GameLobbyView(discord.ui.View):
     
     @discord.ui.button(label="Join Lobby", style=discord.ButtonStyle.green)
     async def join_lobby(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.game.add_player(interaction.user.id, interaction.user.name)
-        embed = self.game.lobby_embed_msg.embeds[0]
-        embed.set_field_at(1,name="Players in Lobby",value="\n".join([player.name for player in self.game.players]))
-        await self.game.lobby_embed_msg.edit(embed=embed)
+        player_not_in_game = not self.game_manager.player_in_game(interaction.user.id)
+        if player_not_in_game:
+            self.game.add_player(interaction.user.id, interaction.user.name)
+            embed = self.game.lobby_embed_msg.embeds[0]
+            embed.set_field_at(1,name="Players in Lobby",value="\n".join([player.name for player in self.game.players]))
+            await self.game.lobby_embed_msg.edit(embed=embed)
+        else:
+            msg = self.game_manager.strip_spacing(
+                f"""{interaction.user.mention}, you are already in an active game.
+                  Issue `.leave` to leave all active games.""")
+            await interaction.response.send_message(msg, delete_after=DEL_AFTER_TIME)
     
         
     @discord.ui.button(label="Leave Lobby", style=discord.ButtonStyle.red)
     async def leave_lobby(self, interaction: discord.Interaction, button: discord.ui.Button):
-        self.game.remove_player(interaction.user.id)
-        embed = self.game.lobby_embed_msg.embeds[0]
-        embed.set_field_at(1,name="Players in Lobby",value='\n'.join([player.name for player in self.game.players]))
-        await self.game.lobby_embed_msg.edit(embed=embed)
+        player_in_game = self.game_manager.player_in_game(interaction.user.id)
+        if player_in_game:
+            self.game.remove_player(interaction.user.id)
+            embed = self.game.lobby_embed_msg.embeds[0]
+            embed.set_field_at(1,name="Players in Lobby",value='\n'.join([player.name for player in self.game.players]))
+            await self.game.lobby_embed_msg.edit(embed=embed)
+        else:
+            await interaction.response.send_message(
+                content=f"{interaction.user.mention}, you are not in an active game or lobby.")
     
     @discord.ui.button(label="Abandon Lobby",style=discord.ButtonStyle.red)
     async def abandon_lobby(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id == self.game.admin_id:
             await self.game_manager.delete_game(self.game)
         else:
-            await interaction.response.send_message(content=f"{interaction.user.mention}, only the lobby host can abandon the lobby.",delete_after=DEL_AFTER_TIME)
+            await interaction.response.send_message(
+                content=f"{interaction.user.mention}, only the lobby host can abandon the lobby.",
+                delete_after=DEL_AFTER_TIME)
     
     @discord.ui.button(label="Start Game",style=discord.ButtonStyle.blurple)
     async def start_game(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -479,11 +539,6 @@ class LegislativeSessionView(discord.ui.View):
                     f"""President {pres} has refused the veto. Chancellor {chancellor.mention}, you must enact a policy.""")
 
 
-        
-
-
-
 
 async def setup(bot):
     await bot.add_cog(SHGameMaintenance(bot))
-

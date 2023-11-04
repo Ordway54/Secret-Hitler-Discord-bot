@@ -33,13 +33,10 @@ class Game:
         # self.players : [Player] = []
 
         ### start of testing
-        self.players = [Player(547520456186658836,'Justin'),Player(2,'Nick'),Player(269279755772231699,'Chris')]
-        a = Player(581116327847264256,'Pat')
-        a.investigated = False
-        a.role = 'Hitler'
-        self.players.append(a)
+        self.players = [Player(547520456186658836,'Justin'),Player(287323027979370507,'Nick'),Player(269279755772231699,'Chris'),Player(581116327847264256,'Pat'),
+                        Player(123,"Ross"),Player(345,"Phillip"),Player(567,"Josh"),Player(890,"James"),Player(125,"Lauren"),Player(423,"Raymond")]
         self.incumbent_president : Player = self.players[0] # for testing
-        self.admin_id = 1
+        self.admin_id = 547520456186658836
 
 
         ### end of testing
@@ -112,7 +109,7 @@ class Game:
                 player: Player
                 if player_id == player.get_id():
                     self.players.remove(player)
-                    return
+                    return True
         return False
     
     def get_player(self, player_id: int):
@@ -173,6 +170,27 @@ class Game:
         """Returns the ID of the Game instance."""
         return self.game_id
     
+    def get_hitler(self):
+        """Returns the player with the role of Hitler.\
+            If no such player is found, returns None."""
+
+        for player in self.players:
+            if player.role == "Hitler":
+                return player
+        return None
+    
+    def get_team(self, team_name: str):
+        """Returns a list of Player objects belonging to team."""
+        
+        if team_name.lower() == "liberal":
+            return [player for player in self.players
+                    if player.get_party() == "Liberal"]
+        elif team_name.lower() == 'fascist':
+            return [player for player in self.players
+                    if player.get_party() == "Fascist"]
+        else:
+            return None
+    
     def has_player(self, player_id):
         """Returns True if player_id matches a player in the Game."""
 
@@ -186,13 +204,27 @@ class Game:
 
         return player_id == self.incumbent_president.get_id()
         
+    def assign_roles(self):
+        """Assigns secret roles to each player in the game."""
+
+        player_count = len(self.players)
+
+        try: 
+            roles = configuration[player_count]["roles"]
+        except KeyError:
+            return False
+        
+        random.shuffle(self.players)
+        random.shuffle(roles)
+
+        for i in range(len(roles)):
+            player = self.players[i]
+            player.role = roles[i]
+
+        # select first Presidential candidate
+        self.nominated_president = self.players[0]
     
     def start(self):
-        """
-        Starts a game of Secret Hitler by shuffling player seats,\
-        shuffling the policy tile deck, and randomly assigning a role\
-        to each player.
-        """
 
         player_count = len(self.players)
         
@@ -204,28 +236,14 @@ class Game:
             return False
         
         self.state = GameState.GAME_STARTING
-        
-        random.shuffle(self.players)
         random.shuffle(self.policy_tile_deck)
-
-        roles = configuration[player_count]["roles"]
-        random.shuffle(roles)
-
-        # assign player roles
-        for i in range(len(roles)):
-            player: Player = self.players[i]
-            player.role = roles[i]
-
-        # select first Presidential candidate
-        self.nominated_president = self.players[0]
-
         self.state = GameState.NOMINATION
     
     def destroy(self):
         """Deletes the game instance and undoes all changes to Discord server."""
         # do stuff here
         # delete all temporary text channels associated with Game
-        del self
+        pass
 
     def rotate_president(self):
         """Assigns the role of nominated President to the next player in line."""
