@@ -29,17 +29,8 @@ class Game:
     MIN_PLAYERS = 5
     MAX_PLAYERS = 10
 
-    def __init__(self, game_id, admin_id):
-        # self.players : [Player] = []
-
-        ### start of testing
-        self.players = [Player(547520456186658836,'Justin'),Player(287323027979370507,'Nick'),Player(269279755772231699,'Chris'),Player(581116327847264256,'Pat'),
-                        Player(123,"Ross"),Player(345,"Phillip"),Player(567,"Josh"),Player(890,"James"),Player(125,"Lauren"),Player(423,"Raymond")]
-        self.incumbent_president : Player = self.players[0] # for testing
-        self.admin_id = 547520456186658836
-
-
-        ### end of testing
+    def __init__(self, game_id: str, admin_name: str, admin_id: int):
+        self.players : [Player] = []
         self.dead_players : [Player] = []
 
         self.votes = {}
@@ -49,15 +40,15 @@ class Game:
 
         self.president_rotation_index : int = 0
         self.nominated_president : Player = None
-        # self.incumbent_president : Player = None commented out for testing only
-        self.president : Player = None
+        self.incumbent_president : Player = None
         self.previous_president : Player = None
 
+        self.nominated_chancellor : Player = None
         self.incumbent_chancellor : Player = None
         self.previous_chancellor : Player = None
 
-        self.state = GameState.LOBBY
-        # self.admin_id = admin_id commented out for testing purposes
+        
+        self.admin_id = admin_id
         self.game_id : int = game_id
 
         self.veto_power_enabled = False
@@ -72,13 +63,14 @@ class Game:
         
         self.discarded_policy_tiles = []
         self.election_tracker = 0
+        self.state = GameState.LOBBY
 
         # server modifications
         self.category : discord.CategoryChannel = None
         self.text_channel : discord.TextChannel = None
         self.lobby_embed_msg : discord.Message = None
-        
-        self.add_player(admin_id,'freaky Mike')
+
+        self.add_player(admin_id,admin_name)
 
     def add_player(self, player_id: int, player_name: str):
         """Adds a player to the Game.
@@ -92,12 +84,9 @@ class Game:
         player_count = len(self.players)
         player_not_in_game = player_id not in self.get_player_IDs()
 
-        if player_not_in_game:
-            if player_count == Game.MAX_PLAYERS:
-                return False
-            else:
-                self.players.append(Player(player_id,player_name))
-                return True
+        if player_not_in_game and player_count < Game.MAX_PLAYERS:
+            self.players.append(Player(player_id,player_name))
+            return True
     
     def remove_player(self, player_id):
         """Removes a player from the Game."""
@@ -161,6 +150,22 @@ class Game:
                     self.incumbent_president.get_id()]
         
         return eligible
+    
+    def get_chancellor_candidates(self):
+        """Returns a list of Players who are eligible to be nominated Chancellor."""
+
+        player_count = len(self.players)
+        eligible = []
+
+        for player in self.players:
+            prev_pres = player.get_id() == self.previous_president.get_id()
+            prev_chanc = player.get_id() == self.previous_chancellor.get_id()
+
+            if not prev_pres and not prev_chanc:
+                eligible.append(player)
+            elif not prev_chanc and player_count <= 5:
+                eligible.append(player)
+        return eligible
 
     def get_player_IDs(self) -> list:
         """Returns a list of player IDs for players currently in the game."""
@@ -203,6 +208,10 @@ class Game:
         """Returns True if player is President. False otherwise."""
 
         return player_id == self.incumbent_president.get_id()
+    
+    def is_chancellor(self, player_id: int):
+        """Returns True if player is Chancellor. False otherwise."""
+        return player_id == self.incumbent_chancellor.get_id()
         
     def assign_roles(self):
         """Assigns secret roles to each player in the game."""
@@ -271,30 +280,44 @@ class Game:
     def vote(self, player_id: int, vote: str):
 
         # disallow changes in vote
-        for id, vote in self.votes.items():
+        for id in self.votes.keys():
             if id == player_id:
-                return False
+                return 1
 
         if len(self.votes) == len(self.players):
             # all votes are in
-            return False
+            return 2
         
         self.votes[player_id] = vote
-        return True
+        return 0
     
     def tally_votes(self):
-        yes_votes = 0
-        no_votes = 0
+        ja = 0
+        nein = 0
 
-        for _, vote in self.votes.items():
-            if vote == 'yes':
-                yes_votes += 1
+        for vote in self.votes.values():
+            if vote == 'ja':
+                ja += 1
             else:
-                no_votes += 1
-               
-        if yes_votes > no_votes:
+                nein += 1
+        
+        self.votes.clear()
+
+        if ja > nein:
+
+            self.previous_president = self.incumbent_president
+            self.previous_chancellor = self.incumbent_chancellor
+
+            self.incumbent_president = self.nominated_president
+            self.incumbent_chancellor = self.nominated_chancellor
+            
+            if self.check_for_win():
+                return
+            
             self.reset_election_tracker()
             self.state = GameState.LEGISLATIVE_PRESIDENT
+            
+            return True
             
         else:
             country_in_chaos = self.advance_election_tracker()
@@ -305,6 +328,7 @@ class Game:
             
             self.state = GameState.NOMINATION
             self.rotate_president()
+            return False
             
     def reset_election_tracker(self):
         """Resets the election tracker to 0."""
@@ -384,6 +408,23 @@ class Game:
         """Draws the top policy tile from the policy tile deck."""
         if len(self.policy_tile_deck) > 0:
             return self.policy_tile_deck[0]
+        
+    def discard_policy_tile(self, tile: str):
+        "Removes tile from policy tile deck and moves it to discard pile."
+        self.policy_tile_deck.remove(tile)
+        self.discarded_policy_tiles.append(tile)
+
+    def enact_policy(self, tile: str):
+
+        if tile.lower() == "liberal":
+            self.liberal_policies_enacted += 1
+        else:
+            self.fascist_policies_enacted += 1
+
+        self.discard_policy_tile(tile)
+        self.check_for_win()
+
+        # manipulate playing board logic here
 
     def check_for_win(self) -> (bool,str):
         """Checks possible win conditions and returns True if the game is over.\
@@ -474,8 +515,6 @@ class Game:
             self.remove_player(player.id)
 
 
-
-
 class Player:
     """Represents a Player in a Secret Hitler game."""
 
@@ -496,6 +535,33 @@ class Player:
         """Returns the Player's Discord ID."""
 
         return self.player_id
+
+
+class GameBoard:
+    """Represents the playing board."""
+
+    def __init__(self, game: Game, player_count: int):
+        self.game = game
+        self.player_count = player_count
+
+
+    def build_board(self):
+        """Constructs the correct playing board given player count."""
+        pass
+
+    def advance_election_tracker(self):
+        pass
+
+    def reset_election_tracker(self):
+        pass
+
+    def add_policy_tile(self):
+        pass
+
+    def clear(self):
+        """Clears the board of all policy tiles."""
+        pass
+
 
 class GameState(Enum):
     LOBBY = 1
