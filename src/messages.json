@@ -3,17 +3,16 @@
         "already_host": "{user}, you are the host of a game that's already in progress. Please issue the `.delgame` command before creating a new one.",
         "not_host": "{user}, you are not the host of any active games.",
         "not_in_game": "{user}, you are not in any active games at the moment.",
-        "not_in_game_or_lobby": "{user}, you're not in an active game or lobby.",
-        "user_already_in_game": "{user}, you're already in an active game. Issue command `.leave` to leave all active games you're in.",
+        "not_in_lobby": "{user}, you're not in the lobby.",
+        "already_in_game": "{user}, you're already in an active game. Issue command `.leave` to leave all active games you're in.",
         "cannot_abandon": "{user}, only the lobby host can abandon the lobby.",
-        "cannot_start": "Only the lobby host ({admin}) can start the game.",
+        "cannot_start": "Only the lobby host (<@{admin}>) can start the game.",
         "not_enough_players": "Not enough players in lobby. A minimum of {minimum} players is needed to start a game."
     },
 
     "roles": {
         "sending": "Now sending secret roles to all players. **Check your DMs!** :speech_balloon:",
-        "role": "{user}, your role is **{role}**.",
-        "party": "You are a member of the **{party}** party."
+        "default": "{user}, your role is **{role}**. You are a member of the **{party}** party."
     },
     
     "nomination": {
@@ -68,5 +67,9 @@
         "pres_accepts": "President {pres} has **agreed to** the veto. No policy is enacted. The populace grows increasingly more frustrated. The election tracker advances by one.",
         "pres_declines": "President {pres} has **refused** the veto. Chancellor {chancellor}, you must enact a policy.",
         "pres_declines_chanc_msg": "President {pres} has refused your motion to veto the agenda. You must choose one policy to discard. The other remaining policy will be enacted."
+    },
+
+    "warnings": {
+        "no_share": "**Remember:** You may choose to share this information (or lie about it!) with other players, but you may **not** show share this message as proof in any way, shape, or form, to any other player."
     }
 }

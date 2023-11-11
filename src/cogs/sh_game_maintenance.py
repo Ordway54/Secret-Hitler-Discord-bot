@@ -3,12 +3,17 @@ from discord.ext import commands
 from discord.ext.commands import Context, Bot
 import asyncio
 import re
+import json
 import sys
 sys.path.append('src')
 from game import Game, GameState, Player
 
 # Testing constants
 DEL_AFTER_TIME = 10
+
+# read in game-related messages to memory
+with open(r"src\messages.json") as f:
+    messages: dict = json.load(f)
 
 def strip_spacing(input_string) -> str:
     """
@@ -56,10 +61,9 @@ class SHGameMaintenance(commands.Cog):
         for game in self.active_games.values():
             game: Game
             if game.admin_id == admin_id:
-                msg = strip_spacing(f"""<@{admin_id}>, you are the host\
-                    of a game that's already in progress. Please issue the\
-                    `.delgame` command before creating a new one.""")
-                await context.channel.send(msg)              
+                msg: str = messages["manage_game"]["already_host"]
+                msg = msg.format(user=context.message.author.name)
+                await context.channel.send(msg)
                 return
         
         guild = context.channel.guild
@@ -120,8 +124,10 @@ class SHGameMaintenance(commands.Cog):
                 self.active_games.pop(game.game_id)
                 # await context.author.send(f"Your active SH game has been deleted. You can now create a new one if you wish.", delete_after=30)
                 return
-
-        await context.channel.send(f'<@{author_id}>, you are not the host of any active games.')
+        
+        msg: str = messages["manage_game"]["not_host"]
+        msg.format(user=context.message.author.name)
+        await context.channel.send(msg)
 
     @commands.command(aliases=("terms","legal","license","licensing","tos"))
     async def send_licensing(self, context: Context):
@@ -148,12 +154,13 @@ class SHGameMaintenance(commands.Cog):
                     return
         
         # no active games with user found
-        await context.message.reply(
-            f"{user.mention}, you are not in any active games at the moment.")
+        msg: str = messages["manage_game"]["not_in_game"]
+        msg.format(user=user.name)
+        await context.message.reply(msg)
         
     async def send_roles(self, game: Game):
-        botmsg = await game.text_channel.send(
-            "Now sending secret roles to all players. **Check your DMs!** :speech_balloon:")
+
+        botmsg = await game.text_channel.send(messages["roles"]["sending"])
         
         game.assign_roles()
         Hitler = game.get_hitler()
@@ -161,10 +168,12 @@ class SHGameMaintenance(commands.Cog):
         fascist_team = game.get_team("Fascist")
 
         for player in game.players:
+            player: Player
             user = self.bot.get_user(player.get_id())
             team = player.get_party()
 
-            msg = f"{player.name}, your role is **{player.role}**.\nYou are a member of the **{team}** party."
+            msg: str = messages["roles"]["default"]
+            msg.format(user=player.name,role=player.role,party=team)
             
             if player.role == "Hitler" and Hitler_knows_fascists:
                 fellow_fascists = [f.name for f in fascist_team if f.name != player.name]
@@ -306,9 +315,8 @@ class GameLobbyView(discord.ui.View):
             embed.set_field_at(1,name="Players in Lobby",value="\n".join([player.name for player in self.game.players]))
             await self.game.lobby_embed_msg.edit(embed=embed)
         else:
-            msg = strip_spacing(
-                f"""{interaction.user.mention}, you are already in an active game.
-                  Issue `.leave` to leave all active games.""")
+            msg: str = messages["manage_game"]["already_in_game"]
+            msg.format(user=interaction.user.name)
             await interaction.response.send_message(msg, delete_after=DEL_AFTER_TIME)
     
         
@@ -321,8 +329,9 @@ class GameLobbyView(discord.ui.View):
             embed.set_field_at(1,name="Players in Lobby",value='\n'.join([player.name for player in self.game.players]))
             await self.game.lobby_embed_msg.edit(embed=embed)
         else:
-            await interaction.response.send_message(
-                content=f"{interaction.user.mention}, you are not in an active game or lobby.")
+            msg: str = messages["manage_game"]["not_in_lobby"]
+            msg.format(user=interaction.user.name)
+            await interaction.response.send_message(msg)
     
     @discord.ui.button(label="Abandon Lobby",style=discord.ButtonStyle.red)
     async def abandon_lobby(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -330,9 +339,9 @@ class GameLobbyView(discord.ui.View):
             await interaction.message.edit(view=None)
             await self.game_manager.delete_game(self.game)
         else:
-            await interaction.response.send_message(
-                content=f"{interaction.user.mention}, only the lobby host can abandon the lobby.",
-                delete_after=DEL_AFTER_TIME)
+            msg: str = messages["manage_game"]["cannot_abandon"]
+            msg.format(user=interaction.user.name)
+            await interaction.response.send_message(msg,delete_after=DEL_AFTER_TIME)
     
     @discord.ui.button(label="Start Game",style=discord.ButtonStyle.blurple)
     async def start_game(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -344,10 +353,13 @@ class GameLobbyView(discord.ui.View):
                 await interaction.message.edit(view=None)
                 await interaction.response.send_message(content="Starting game!")
             else:
-                await interaction.response.send_message(
-                    content=f"Not enough players in lobby. A minimum of {Game.MIN_PLAYERS} players is needed to start a game.",delete_after=DEL_AFTER_TIME)
+                msg: str = messages["manage_game"]["not_enough_players"]
+                msg.format(minimum=Game.MIN_PLAYERS)
+                await interaction.response.send_message(msg,delete_after=DEL_AFTER_TIME)
         else:
-            await interaction.response.send_message(content=f"Only the lobby host (<@{self.game.admin_id}>) can start the game.", delete_after=DEL_AFTER_TIME)
+            msg: str = messages["manage_game"]["cannot_start"]
+            msg.format(admin=self.game.admin_id)
+            await interaction.response.send_message(msg, delete_after=DEL_AFTER_TIME)
 
 
 class PresidentialPowerView(discord.ui.View):
