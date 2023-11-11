@@ -184,14 +184,22 @@ class SHGameMaintenance(commands.Cog):
             "Game over!"
         )
 
-    async def start_voting(self, channel: discord.TextChannel):
+    async def start_voting(self, game: Game): # pass game instance to access text channel, not Textchannel
 
-        msg = "Time to vote! :ballot_box:"
-        msg = await channel.send(msg)
-        return msg
+        await game.text_channel.send("Time to vote! :ballot_box:")
+        
+        msg = f"Elect President {game.nominated_president.name} and Chancellor {game.nominated_chancellor.name}?"
+        await game.text_channel.send(msg,view=VotingView(game,self))
     
-    async def start_nomination(self):
-        pass
+    async def start_nomination(self, game: Game, pres: Player):
+        game.nominated_president = pres
+        user = self.bot.get_user(pres.get_id())
+        
+        await game.text_channel.send(
+            f"Presidential nominee {user.mention}, nominate a player to be Chancellor.",
+            view=NominationView(game,self))
+        
+        
 
     async def start_election(self):
         pass
@@ -540,9 +548,9 @@ class NominationView(discord.ui.View):
             self.add_item(btn)
     
     async def nominate(self, interaction: discord.Interaction):
-        user_is_president = self.game.is_president(interaction.user.id)
+        user_is_pres_nom = self.game.is_nominated_president(interaction.user.id)
 
-        if user_is_president:
+        if user_is_pres_nom:
             choice = interaction.data.get('custom_id')[:-1]
             await interaction.message.edit(view=None)
 
@@ -550,9 +558,6 @@ class NominationView(discord.ui.View):
             await self.game.text_channel.send(msg,view=VotingView(self.game,self.game_manager))
 
             await self.game_manager.start_voting(self.game.text_channel)
-
-            
-
 
         else:
             interaction.response(
@@ -591,10 +596,12 @@ class VotingView(discord.ui.View):
             await chn.send(
                 f"{interaction.user.mention}, your vote was recorded. :ballot_box_with_check:",
                 delete_after=DEL_AFTER_TIME)
+        
         elif res == 1:
             await chn.send(
                 f"{interaction.user.mention}, you've already cast your vote.",
                 delete_after=DEL_AFTER_TIME)
+        
         elif res == 2:
             vote_passed = self.game.tally_votes()
             
@@ -610,11 +617,18 @@ class VotingView(discord.ui.View):
                     chan = self.game.incumbent_chancellor.name
 
                     await chn.send(
-                        f":white_check_mark: Vote passed! President **{pres}** and Chancellor **{chan}** are elected."
-                    )
+                        f":white_check_mark: Vote passed! President **{pres}** and Chancellor **{chan}** are elected.")
+                    
+                    self.game.state = GameState.LEGISLATIVE_PRESIDENT
+                    self.game_manager.start_legislative_pres()
                 else:
                     await chn.send(
                         f":x: Vote failed! Presidential nominee **{pres}** and Chancellor nominee **{chan}** are not elected.")
+                    
+                    pres_index = self.game.rotate_president()
+                    self.game.state = GameState.NOMINATION
+                    self.game_manager.start_nomination(self.game,self.game.players[pres_index])
+
 
         
 

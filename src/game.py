@@ -208,6 +208,10 @@ class Game:
         """Returns True if player is President. False otherwise."""
 
         return player_id == self.incumbent_president.get_id()
+
+    def is_nominated_president(self, player_id: int):
+        """Returns True if player is Presidential nominee. False otherwise."""
+        return player_id == self.nominated_president.get_id()
     
     def is_chancellor(self, player_id: int):
         """Returns True if player is Chancellor. False otherwise."""
@@ -261,6 +265,7 @@ class Game:
             self.president_rotation_index = 0
         else:
             self.president_rotation_index += 1
+        return self.president_rotation_index
 
     def nominate_chancellor(self, player_id):
 

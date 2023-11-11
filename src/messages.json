@@ -1,0 +1,72 @@
+{
+    "manage_game": {
+        "already_host": "{user}, you are the host of a game that's already in progress. Please issue the `.delgame` command before creating a new one.",
+        "not_host": "{user}, you are not the host of any active games.",
+        "not_in_game": "{user}, you are not in any active games at the moment.",
+        "not_in_game_or_lobby": "{user}, you're not in an active game or lobby.",
+        "user_already_in_game": "{user}, you're already in an active game. Issue command `.leave` to leave all active games you're in.",
+        "cannot_abandon": "{user}, only the lobby host can abandon the lobby.",
+        "cannot_start": "Only the lobby host ({admin}) can start the game.",
+        "not_enough_players": "Not enough players in lobby. A minimum of {minimum} players is needed to start a game."
+    },
+
+    "roles": {
+        "sending": "Now sending secret roles to all players. **Check your DMs!** :speech_balloon:",
+        "role": "{user}, your role is **{role}**.",
+        "party": "You are a member of the **{party}** party."
+    },
+    
+    "nomination": {
+        "prompt_pres": "Presidential nominee {pres}, nominate a player to be Chancellor.",
+        "chanc_nominated": "Presidential nominee {nominated_pres} has nominated **{nominated_chanc}** as Chancellor.",
+        "cannot_nominate": "{user}, only the nominated President can nominate a Chancellor."
+    },
+
+    "election": {
+        "announce_start": "Time to vote! :ballot_box:",
+        "announce_candidates": "Elect President {pres} and Chancellor {chanc}?",
+        "vote_recorded": "{user}, your vote was recorded. :ballot_box_with_check:",
+        "vote_cast": "{user}, you've already cast your vote.",
+        "all_votes_in": "All votes are in! :ballot_box: :ballot_box_with_check:",
+        "tallying": "Tallying votes... :abacus:",
+        "passed": ":white_check_mark: Vote passed! President **{pres}** and Chancellor **{chanc}** are elected.",
+        "failed": ":x: Vote failed! Presidential nominee **{pres}** and Chancellor nominee **{chanc}** are not elected."
+
+    },
+
+    "legislative_pres": {
+
+    },
+
+    "legislative_chanc": {
+
+    },
+    
+    "investigate": {
+        "announce_choice": "President {pres} chose to investigate the party loyalty of {investigated}!",
+        "pres_msg": "**FOR THE EYES OF PRESIDENT {pres} ONLY**\nPresident {pres},\nYou chose to investigate {investigated}. They are a member of the {investigated_party} party.\n{warning}"
+    },
+
+    "special_election": {
+        "announcement": "Incumbent President {incumbent_pres} has nominated {nominated_pres} to run in this upcoming Special Election!"
+    },
+
+    "policy_peek": {
+        "pres_msg": "**FOR THE EYES OF PRESIDENT {pres} ONLY**\nYou peek at the top 3 policy tiles in the deck and see the following policies: {p1}, {p2}, {p3}\n{warning}",
+        "public_msg": "President {pres} takes the top 3 policy tiles in the policy tile deck and looks at them in secret before returning them to the top of the deck with the order unchanged."
+    },
+
+    "execution": {
+        "msg1": "President {pres} moves toward a nearby table and reaches for a revolver resting on it. They raise the gun and point it at {executed}.",
+        "msg2": "President {pres} squeezes the trigger firing a shot that kills {executed} instantly.",
+        "hitler_killed": "In the aftermath, documents are found on the dead body which positively identify the deceased as Adolf Hitler. Liberals win!",
+        "not_hitler": "In the aftermath, documents are found on the dead body which reveal the deceased is **not** Adolf Hitler."
+    },
+
+    "veto": {
+        "prompt_pres": "President {pres}: Chancellor {chanc} wishes to veto this agenda. Do you agree?",
+        "pres_accepts": "President {pres} has **agreed to** the veto. No policy is enacted. The populace grows increasingly more frustrated. The election tracker advances by one.",
+        "pres_declines": "President {pres} has **refused** the veto. Chancellor {chancellor}, you must enact a policy.",
+        "pres_declines_chanc_msg": "President {pres} has refused your motion to veto the agenda. You must choose one policy to discard. The other remaining policy will be enacted."
+    }
+}
