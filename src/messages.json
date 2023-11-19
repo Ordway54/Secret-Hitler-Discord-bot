@@ -69,7 +69,7 @@
         "pres_declines_chanc_msg": "President {pres} has refused your motion to veto the agenda. You must choose one policy to discard. The other remaining policy will be enacted."
     },
 
-    "warnings": {
+    "warning": {
         "no_share": "**Remember:** You may choose to share this information (or lie about it!) with other players, but you may **not** show share this message as proof in any way, shape, or form, to any other player."
     }
 }

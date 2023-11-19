@@ -441,19 +441,18 @@ class PresidentialPowerView(discord.ui.View):
             player_to_investigate.investigated = True
             president_name = interaction.user.name
 
-            msg = (
-                f"""
-                **FOR THE EYES OF PRESIDENT {president_name.upper()} ONLY**\n
-                President {president_name},\nYou chose to investigate {player_to_investigate.name}.
-                They are a member of the {player_to_investigate.get_party()} party.\n
-                {SHGameMaintenance.NO_SHARE_WARNING}
-                """)
+            msg : str = messages["investigate"]["pres_msg"]
+            msg.format(pres=president_name,
+                       investigated=player_to_investigate.name,
+                       investigated_party=player_to_investigate.get_party(),
+                       warning=messages["warning"]["no_share"])
             
             # DM investigated player's party loyalty to President
             await interaction.user.send(msg, delete_after=DEL_AFTER_TIME)
 
-            await interaction.message.channel.send(
-                f"""President {interaction.user.name} chose to investigate the party loyalty of {player_to_investigate.name}!""")
+            msg2 : str = messages["investigate"]["announce_choice"]
+            msg2.format(pres=president_name,investigated=player_to_investigate.name)
+            await interaction.message.channel.send(msg2)
 
     async def cb_special_election(self, interaction: discord.Interaction):
         """A callback function for the Call Special Election buttons."""
