@@ -193,14 +193,19 @@ class SHGameMaintenance(commands.Cog):
             "Game over!"
         )
 
-    async def start_voting(self, game: Game): # pass game instance to access text channel, not Textchannel
-
-        await game.text_channel.send("Time to vote! :ballot_box:")
+    async def start_voting(self, game: Game):
         
-        msg = f"Elect President {game.nominated_president.name} and Chancellor {game.nominated_chancellor.name}?"
+        msg : str = messages["election"]["announce_start"]
+        await game.text_channel.send(msg)
+        
+        msg : str = messages["election"]["announce_candidates"]
+        msg.format(pres=game.nominated_president.name,
+                   chanc=game.nominated_chancellor.name)
+        
         await game.text_channel.send(msg,view=VotingView(game,self))
     
     async def start_nomination(self, game: Game, pres: Player):
+        game.state = GameState.NOMINATION
         game.nominated_president = pres
         user = self.bot.get_user(pres.get_id())
         
@@ -213,11 +218,33 @@ class SHGameMaintenance(commands.Cog):
     async def start_election(self):
         pass
 
-    async def start_legislative_pres(self):
-        pass
+    async def start_legislative_pres(self, game: Game):
+        game.state = GameState.LEGISLATIVE_PRESIDENT
 
-    async def start_legislative_chanc(self):
-        pass
+        # public announcement
+        msg : str = messages['legislative_pres']["pres_selecting"]
+        msg.format(pres=game.incumbent_president.name)
+        await game.text_channel.send(msg)
+
+        # DM President drawn policy tiles
+        msg2 : str = messages["legislative_pres"]["3_policies"]
+        pres = self.bot.get_user(game.incumbent_president.get_id())
+        await pres.send(msg2,view=LegislativeSessionView(game,self))
+
+
+    async def start_legislative_chanc(self, game: Game):
+        game.state = GameState.LEGISLATIVE_CHANCELLOR
+
+        # public announcement
+        msg : str = messages["legislative_chanc"]["chanc_selecting"]
+        msg.format(chanc=game.incumbent_chancellor.name)
+        await game.text_channel.send(msg)
+
+        # DM Chancellor policy tiles
+        msg2 : str = messages["legislative_chanc"]["2_policies"]
+        msg2.format(pres=game.incumbent_president.name)
+        chanc = self.bot.get_user(game.incumbent_chancellor.get_id())
+        await chanc.send(msg2, view=LegislativeSessionView(game,self))
 
     async def start_veto(self):
         pass
@@ -467,14 +494,15 @@ class PresidentialPowerView(discord.ui.View):
             nominated_pres = self.game.get_player(player_id)
             self.game.nominated_president = nominated_pres
 
-            msg = strip_spacing(f"""Incumbent President\ 
-                {self.game.incumbent_president.name} has nominated {nominated_pres.name}
-                to run in this upcoming Special Election!""")
+            msg : str = messages["special_election"]["announcement"]
+            msg.format(incumbent_pres=self.game.incumbent_president.name,
+                       nominated_pres=self.game.nominated_president.name)
             
-            await interaction.message.channel.send(content=msg)
+            await interaction.message.channel.send(msg)
 
             # prompt new Presidential nominee
-            msg2 = f"{nominated_pres.name}, choose a player to nominate as Chancellor."
+            msg2 : str = messages["special_election"]["prompt_pres"]
+            msg2.format(nominated_pres=self.game.nominated_president.name)
             await interaction.message.channel.send(msg2,view=NominationView(self.game,self.game_manager))
 
     async def cb_policy_peek(self, interaction: discord.Interaction):
@@ -553,7 +581,7 @@ class NominationView(discord.ui.View):
         for i, player in enumerate(eligible):
             player: Player
             btn = discord.ui.Button(style=discord.ButtonStyle.blurple,
-                                    custom_id=f"{player.name}{i}",
+                                    custom_id=str(player.get_id()),
                                     label=player.name)
             btn.callback = self.nominate
             self.add_item(btn)
@@ -562,13 +590,15 @@ class NominationView(discord.ui.View):
         user_is_pres_nom = self.game.is_nominated_president(interaction.user.id)
 
         if user_is_pres_nom:
-            choice = interaction.data.get('custom_id')[:-1]
+            self.game.nominated_chancellor : Player = self.game.get_player(int(interaction.data.get('custom_id')))
             await interaction.message.edit(view=None)
 
-            msg = f"Presidential nominee {interaction.user.name} has nominated **{choice}** as Chancellor."
-            await self.game.text_channel.send(msg,view=VotingView(self.game,self.game_manager))
-
-            await self.game_manager.start_voting(self.game.text_channel)
+            msg : str = messages["nomination"]["chanc_nominated"]
+            msg.format(nominated_pres=self.game.nominated_president.name,
+                       nominated_chanc=self.game.nominated_chancellor.name)
+            
+            await self.game.text_channel.send(msg)
+            await self.game_manager.start_voting(self.game)
 
         else:
             interaction.response(
@@ -604,44 +634,52 @@ class VotingView(discord.ui.View):
         chn = self.game.text_channel
 
         if res == 0:
-            await chn.send(
-                f"{interaction.user.mention}, your vote was recorded. :ballot_box_with_check:",
-                delete_after=DEL_AFTER_TIME)
+            msg : str = messages["election"]["vote_recorded"]
+            msg.format(user=interaction.user.mention)
+            await chn.send(msg,delete_after=DEL_AFTER_TIME)
         
         elif res == 1:
-            await chn.send(
-                f"{interaction.user.mention}, you've already cast your vote.",
-                delete_after=DEL_AFTER_TIME)
+            msg : str = messages["election"]["vote_cast"]
+            msg.format(user=interaction.user.mention)
+            await chn.send(msg,delete_after=DEL_AFTER_TIME)
         
         elif res == 2:
-            vote_passed = self.game.tally_votes()
-            
             await interaction.message.edit(view=None)
-            await chn.send(
-                f"All votes are in! :ballot_box: :ballot_box_with_check:")
+            await chn.send(messages["election"]["all_votes_in"])
+            
+            vote_passed = self.game.tally_votes()
+
+            show_votes = ""
+
+            for player_id, vote in self.game.votes.items():
+                player = self.game.get_player(player_id)
+                show_votes += f"{player.name}: {vote}\n"
+            
+            await chn.send(show_votes)
+            self.game.votes.clear()
+
             async with chn.typing():
                 await chn.send("Tallying votes... :abacus:")
-                await asyncio.sleep(3)
+                await asyncio.sleep(1)
 
                 if vote_passed:
-                    pres = self.game.incumbent_president.name
-                    chan = self.game.incumbent_chancellor.name
 
-                    await chn.send(
-                        f":white_check_mark: Vote passed! President **{pres}** and Chancellor **{chan}** are elected.")
+                    msg : str = messages["election"]["passed"]
+                    msg.format(pres=self.game.incumbent_president.name,
+                               chanc=self.game.incumbent_chancellor.name)
+                    await chn.send(msg)
                     
-                    self.game.state = GameState.LEGISLATIVE_PRESIDENT
                     self.game_manager.start_legislative_pres()
+                
                 else:
-                    await chn.send(
-                        f":x: Vote failed! Presidential nominee **{pres}** and Chancellor nominee **{chan}** are not elected.")
+                    msg : str = messages["election"]["failed"]
+                    msg.format(pres=self.game.nominated_president.name,
+                               chanc=self.game.nominated_chancellor.name)
+                    await chn.send(msg)
                     
                     pres_index = self.game.rotate_president()
-                    self.game.state = GameState.NOMINATION
                     self.game_manager.start_nomination(self.game,self.game.players[pres_index])
 
-
-        
 
 class LegislativeSessionView(discord.ui.View):
     """Represents the View applied when a legislative session is underway."""
@@ -660,9 +698,9 @@ class LegislativeSessionView(discord.ui.View):
         if self.game.state == GameState.LEGISLATIVE_PRESIDENT:
             print("Legislative view: pres")
             
-            self.policy_tiles = self.game.policy_tile_deck[:3]
+            self.game.policies_in_play = self.game.policy_tile_deck[:3]
 
-            for index, tile in enumerate(self.policy_tiles):
+            for index, tile in enumerate(self.game.policies_in_play):
                 btn = discord.ui.Button(style=discord.ButtonStyle.blurple,
                                         custom_id=f"{tile}{index}", # eg. "Fascist1"
                                         label=f"Discard {tile} Policy")
@@ -672,12 +710,9 @@ class LegislativeSessionView(discord.ui.View):
 
         elif self.game.state == GameState.LEGISLATIVE_CHANCELLOR:
             print("Legislative view: chanc")
-
-            # get top 2 policies from deck
-            self.policy_tiles = self.game.policy_tile_deck[:2]
             
             # create a discard button for each tile
-            for index, tile in enumerate(self.policy_tiles):
+            for index, tile in enumerate(self.game.policies_in_play):
                 btn = discord.ui.Button(style=discord.ButtonStyle.blurple,
                                         custom_id=f"{tile}{index}",
                                         label=f"Discard {tile} Policy")
@@ -702,20 +737,14 @@ class LegislativeSessionView(discord.ui.View):
         user_is_president = self.game.is_president(interaction.user.id)
 
         if user_is_president:
+            await interaction.message.edit(view=None)
+
             # ignore last index position ("Fascist1" -> "Fascist")
             discarded = interaction.data.get('custom_id')[:-1]
-            self.policy_tiles.remove(discarded)
+            self.game.policies_in_play.remove(discarded)
             self.game.discard_policy_tile(discarded)
 
-            self.game.state = GameState.LEGISLATIVE_CHANCELLOR
-
-            chancellor = (self.game_manager.bot.get_user(
-                        self.game.incumbent_chancellor.get_id()))
-            pres = interaction.user.name
-            
-            await chancellor.send(
-                content=f"President {pres} passes you the following policies: {', '.join(self.policy_tiles)}",
-                view=LegislativeSessionView(self.game,self.game_manager))
+            await self.game_manager.start_legislative_chanc(self.game)
 
     async def cb_veto(self, interaction: discord.Interaction):
         """A callback function for vetoing the agenda."""
@@ -776,21 +805,13 @@ class LegislativeSessionView(discord.ui.View):
 
         if user_is_chancellor:
             await interaction.message.edit(view=None)
-            discard = interaction.data.get('custom_id')
-            discard_index = discard[-1] # should be either '0' or '1'
+            discard = interaction.data.get('custom_id')[:-1]
+            self.game.policies_in_play.remove(discard)
+            self.game.discard_policy_tile(discard)
 
-            if discard_index == '0':
-                # user discarded policy in index 0, enact policy in index 1
-                enact = self.game.policy_tile_deck[1]
-                self.game.enact_policy(enact)
-
-            elif discard_index == '1':
-                # user discarded policy in index 1, enact policy in index 0
-                enact = self.game.policy_tile_deck[0]
-                self.game.enact_policy(enact)
+            self.game.enact_policy(self.game.policies_in_play[0])
             
-            await interaction.message.edit(view=None)
-            self.game.state = GameState.NOMINATION
+            self.game_manager.start_nomination(self.game,)
 
 
 async def setup(bot):

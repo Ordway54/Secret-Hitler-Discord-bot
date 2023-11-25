@@ -62,6 +62,7 @@ class Game:
                                 'Fascist']
         
         self.discarded_policy_tiles = []
+        self.policies_in_play = []
         self.election_tracker = 0
         self.state = GameState.LOBBY
 
@@ -284,10 +285,9 @@ class Game:
 
     def vote(self, player_id: int, vote: str):
 
-        # disallow changes in vote
-        for id in self.votes.keys():
-            if id == player_id:
-                return 1
+        if player_id in self.votes.keys():
+            # player already voted
+            return 1
 
         if len(self.votes) == len(self.players):
             # all votes are in
@@ -305,14 +305,13 @@ class Game:
                 ja += 1
             else:
                 nein += 1
-        
-        self.votes.clear()
 
         if ja > nein:
-
+            # make incumbent politicians previous politicians
             self.previous_president = self.incumbent_president
             self.previous_chancellor = self.incumbent_chancellor
 
+            # make nominees incumbent politicians
             self.incumbent_president = self.nominated_president
             self.incumbent_chancellor = self.nominated_chancellor
             

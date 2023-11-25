@@ -34,10 +34,14 @@
     },
 
     "legislative_pres": {
+        "3_policies": "You draw the following three policies. **Choose one to discard.**",
+        "pres_selecting": "President {pres} is selecting a policy to discard."
 
     },
 
     "legislative_chanc": {
+        "2_policies": "President {pres} passes you the following two policies. **Choose one to discard.**",
+        "chanc_selecting": "Chancellor {chanc} is selecting a policy to discard."
 
     },
     
@@ -47,7 +51,8 @@
     },
 
     "special_election": {
-        "announcement": "Incumbent President {incumbent_pres} has nominated {nominated_pres} to run in this upcoming Special Election!"
+        "announcement": "Incumbent President {incumbent_pres} has nominated {nominated_pres} to run in this upcoming Special Election!",
+        "prompt_pres": "President {nominated_pres}, choose a player to nominate as Chancellor."
     },
 
     "policy_peek": {
