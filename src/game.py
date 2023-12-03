@@ -6,6 +6,7 @@ import random
 from enum import Enum
 from config import configuration
 import discord
+from game_board import GameBoard
 
 class Game:
     """Represents a game of Secret Hitler."""
@@ -49,7 +50,8 @@ class Game:
 
         
         self.admin_id = admin_id
-        self.game_id : int = game_id
+        self.game_id = game_id
+        self.board = GameBoard(self)
 
         self.veto_power_enabled = False
         self.president_veto_vote = None

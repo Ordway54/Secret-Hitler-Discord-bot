@@ -1,3 +1,8 @@
+"""
+This module manages all Discord events and user input and modifies the
+Game object associated with each event and user interaction.
+"""
+
 import discord
 from discord.ext import commands
 from discord.ext.commands import Context, Bot
