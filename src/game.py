@@ -11,21 +11,6 @@ from game_board import GameBoard
 class Game:
     """Represents a game of Secret Hitler."""
 
-    LICENSE_TERMS = (
-            """
-            Secret Hitler was created by Mike Boxleiter, Tommy Maranges,\
-            and Mac Schubert.\n
-            Secret Hitler is licensed under a Creative Commons\
-            Attribution-NonCommercial-ShareAlike 4.0\
-            International License.
-            This license permits the copying and\
-            redistribution of Secret Hitler in any medium or format for\
-            non-commercial purposes.\n
-
-            Visit http://www.secrethitler.com/ to learn more.
-            """
-            )
-
     SH_ORANGE = discord.Color.from_rgb(242,100,74)
     MIN_PLAYERS = 5
     MAX_PLAYERS = 10
@@ -51,7 +36,7 @@ class Game:
         
         self.admin_id = admin_id
         self.game_id = game_id
-        self.board = GameBoard(self)
+        # self.board = GameBoard(self)
 
         self.veto_power_enabled = False
         self.president_veto_vote = None
@@ -541,32 +526,6 @@ class Player:
         """Returns the Player's Discord ID."""
 
         return self.player_id
-
-
-class GameBoard:
-    """Represents the playing board."""
-
-    def __init__(self, game: Game, player_count: int):
-        self.game = game
-        self.player_count = player_count
-
-
-    def build_board(self):
-        """Constructs the correct playing board given player count."""
-        pass
-
-    def advance_election_tracker(self):
-        pass
-
-    def reset_election_tracker(self):
-        pass
-
-    def add_policy_tile(self):
-        pass
-
-    def clear(self):
-        """Clears the board of all policy tiles."""
-        pass
 
 
 class GameState(Enum):

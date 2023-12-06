@@ -30,7 +30,6 @@
         "tallying": "Tallying votes... :abacus:",
         "passed": ":white_check_mark: Vote passed! President **{pres}** and Chancellor **{chanc}** are elected.",
         "failed": ":x: Vote failed! Presidential nominee **{pres}** and Chancellor nominee **{chanc}** are not elected."
-
     },
 
     "legislative_pres": {
@@ -56,8 +55,8 @@
     },
 
     "policy_peek": {
-        "pres_msg": "**FOR THE EYES OF PRESIDENT {pres} ONLY**\nYou peek at the top 3 policy tiles in the deck and see the following policies: {p1}, {p2}, {p3}\n{warning}",
-        "public_msg": "President {pres} takes the top 3 policy tiles in the policy tile deck and looks at them in secret before returning them to the top of the deck with the order unchanged."
+        "pres_msg": "**FOR THE EYES OF PRESIDENT {pres} ONLY**\nYou peek at the top 3 policy tiles in the deck and see the following: {p1}, {p2}, {p3}\n{warning}",
+        "public_msg": "President {pres} has viewed the top 3 policies in the policy tile draw deck."
     },
 
     "execution": {
@@ -69,12 +68,16 @@
 
     "veto": {
         "prompt_pres": "President {pres}: Chancellor {chanc} wishes to veto this agenda. Do you agree?",
-        "pres_accepts": "President {pres} has **agreed to** the veto. No policy is enacted. The populace grows increasingly more frustrated. The election tracker advances by one.",
-        "pres_declines": "President {pres} has **refused** the veto. Chancellor {chancellor}, you must enact a policy.",
+        "pres_accepts": "President {pres} has **agreed** to the veto. No policy is enacted. The populace grows increasingly frustrated. The election tracker advances by one.",
+        "pres_declines": "President {pres} has **refused** the veto. Chancellor {chanc}, you must enact a policy.",
         "pres_declines_chanc_msg": "President {pres} has refused your motion to veto the agenda. You must choose one policy to discard. The other remaining policy will be enacted."
     },
 
     "warning": {
         "no_share": "**Remember:** You may choose to share this information (or lie about it!) with other players, but you may **not** show share this message as proof in any way, shape, or form, to any other player."
+    },
+
+    "legal": {
+        "license_terms": "Secret Hitler was created by Mike Boxleiter, Tommy Maranges, and Mac Schubert.\nSecret Hitler is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License. This license permits the copying and redistribution of Secret Hitler in any medium or format for non-commercial purposes.\nVisit http://www.secrethitler.com/ to learn more."
     }
 }

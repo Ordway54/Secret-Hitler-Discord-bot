@@ -20,14 +20,6 @@ DEL_AFTER_TIME = 10
 with open(r"src\messages.json") as f:
     messages: dict = json.load(f)
 
-def strip_spacing(input_string) -> str:
-    """
-    Returns input_string stripped of tab characters and line breaks so that
-    each word is separated by a single space. This is useful for\
-    eliminating the janky formatting that results when sending multiline\
-    strings as Discord messages.
-    """
-    return re.sub(r'\s+', ' ', input_string)
 
 class SHGameMaintenance(commands.Cog):
 
@@ -140,7 +132,8 @@ class SHGameMaintenance(commands.Cog):
         url = "https://www.secrethitler.com/"
         color = Game.SH_ORANGE
         
-        terms_embed = discord.Embed(title=title,description=Game.LICENSE_TERMS,url=url,color=color)
+        copy : str = messages["legal"]["license_terms"]
+        terms_embed = discord.Embed(title=title,description=copy,url=url,color=color)
 
         await context.channel.send(embed=terms_embed)
     
@@ -522,18 +515,17 @@ class PresidentialPowerView(discord.ui.View):
             p1, p2, p3 = self.game.policy_peek()
             pres_name = interaction.user.name
 
-            msg = strip_spacing(f"""
-                    **FOR THE EYES OF PRESIDENT {pres_name.upper()} ONLY**\n
-                    You peek at the top 3 policy tiles in the deck and see the\
-                    following policies: {p1}, {p2}, {p3}\n
-                    {SHGameMaintenance.NO_SHARE_WARNING}""")
+            msg : str = messages["policy_peek"]["pres_msg"]
+            msg.format(pres=pres_name,
+                       p1=p1,
+                       p2=p2,
+                       p3=p3,
+                       warning=messages["warning"]["no_share"])
+
+            await interaction.user.send(msg,delete_after=DEL_AFTER_TIME)
             
-            await interaction.user.send(content=msg,delete_after=DEL_AFTER_TIME)
-            
-            msg2 = strip_spacing(f"""President {pres_name} takes the top 3\
-                    policy tiles in the policy tile deck and looks at them\
-                    in secret before returning them to the top of the deck with\
-                    their order unchanged.""")
+            msg2 : str = messages["policy_peek"]["public_msg"]
+            msg2.format(pres=pres_name)
             
             await interaction.message.channel.send(msg2)
             
@@ -778,14 +770,15 @@ class LegislativeSessionView(discord.ui.View):
         user_is_president = self.game.is_president(interaction.user.id)
 
         if user_is_president:
-            await interaction.message.edit(view=None) # remove view
+            await interaction.message.edit(view=None)
             discard = interaction.data.get("custom_id")
             pres = interaction.user.name
             chancellor = self.game_manager.bot.get_user(self.game.incumbent_chancellor.get_id())
 
             if discard == "agree":
-                await self.game.text_channel.send(
-                    f"""President {pres} has **agreed to** the veto. No policy is enacted. The populace grows increasingly more frustrated. The election tracker advances by one.""")
+                msg : str = messages["veto"]["pres_accepts"]
+                msg.format(pres=pres)
+                await self.game.text_channel.send(msg)
                 self.game.veto()
                 self.game.state = GameState.NOMINATION
             
@@ -793,13 +786,12 @@ class LegislativeSessionView(discord.ui.View):
                 self.game.state = GameState.LEGISLATIVE_CHANCELLOR
                 print("Pres refused veto. Return to Chancellor decision.")
 
-                await self.game.text_channel.send(
-                    f"""President {pres} has **refused** the veto. Chancellor {chancellor.mention}, you must enact a policy.""")
+                msg : str = messages["veto"]["pres_declines"]
+                msg.format(pres=pres,chanc=chancellor.name)
+                await self.game.text_channel.send(msg)
                 
-                msg = strip_spacing(
-                    f"""President {pres} has refused your motion to veto the agenda. 
-                    You must choose one policy to discard. The other remaining policy 
-                    will be enacted.""")
+                msg : str = messages["veto"]["pres_declines_chanc_msg"]
+                msg.format(pres=pres)
                 await chancellor.send(msg, view=LegislativeSessionView(game=self.game,
                                                                        game_manager=self.game_manager,
                                                                        veto_failed=True))
