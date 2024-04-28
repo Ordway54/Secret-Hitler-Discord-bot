@@ -1,28 +1,19 @@
-# testing playground
+from game import Game, GameBoard
 
-from game import Game, Player
+game = Game('test2112','Justin',2112)
+game.add_player(1,'Tom')
+game.add_player(2,'Tom')
+game.add_player(3,'Tom')
+game.add_player(4,'Tom')
+game.add_player(5,'Tom')
+game.add_player(6,"Sean")
 
-a = Game(1,1,1,6)
-# b = Player(1)
-# c = Player(2)
-# d = Player(3)
-# e = Player(4)
-# f = Player(5)
-# g = Player(6)
+board = GameBoard(game)
 
-# a.players = [b,c,d,e,f,g]
-
-# print(a.players)
-# print(a.policy_tiles)
-# for player in a.players: print(player.role)
-# print(a.president)
-# a.start()
-
-# print(a.players)
-# print(a.policy_tiles)
-
-# for player in a.players:
-#     print(player.role)
-
-# print(a.president.role, ' is president')
+for i in range(1,6):
+    board.add_liberal_tile(i)
+    game.liberal_policies_enacted += 1
+board.liberal_track_img.show()
+board.reset_election_tracker()
+board.liberal_track_img.show()
 

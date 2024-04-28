@@ -555,12 +555,12 @@ class PresidentialPowerView(discord.ui.View):
                     f"""President {pres_name} says aloud: "I formally execute {chosen_player.name}" and fires a shot killing them instantly.""")
                 await asyncio.sleep(5)
                 if chosen_player.role == "Hitler":
-                    await interaction.message.channel.send(
-                        f"""In the aftermath, documents are found on the dead body which positively identify the deceased as Adolf Hitler. Liberals win!""")
                     self.game.state = GameState.GAME_OVER
+                    msg : str = messages["manage_game"]["liberals_win_hitler"]
+                    await interaction.message.channel.send(msg)
+                    
                 else:
-                    await interaction.message.channel.send(
-                        f"""In the aftermath, documents are found on the dead body which reveal the deceased is **not** Adolf Hitler.""")
+                    await interaction.message.channel.send(messages["manage_game"]["hitler_not_executed"])
 
 
 class NominationView(discord.ui.View):
@@ -652,12 +652,11 @@ class VotingView(discord.ui.View):
                 player = self.game.get_player(player_id)
                 show_votes += f"{player.name}: {vote}\n"
             
-            await chn.send(show_votes)
-            self.game.votes.clear()
-
+            
             async with chn.typing():
                 await chn.send("Tallying votes... :abacus:")
                 await asyncio.sleep(1)
+                await chn.send(show_votes)
 
                 if vote_passed:
 
@@ -676,6 +675,8 @@ class VotingView(discord.ui.View):
                     
                     pres_index = self.game.rotate_president()
                     self.game_manager.start_nomination(self.game,self.game.players[pres_index])
+            
+        self.game.votes.clear()
 
 
 class LegislativeSessionView(discord.ui.View):

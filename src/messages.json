@@ -7,7 +7,12 @@
         "already_in_game": "{user}, you're already in an active game. Issue command `.leave` to leave all active games you're in.",
         "cannot_abandon": "{user}, only the lobby host can abandon the lobby.",
         "cannot_start": "Only the lobby host (<@{admin}>) can start the game.",
-        "not_enough_players": "Not enough players in lobby. A minimum of {minimum} players is needed to start a game."
+        "not_enough_players": "Not enough players in lobby. A minimum of {minimum} players is needed to start a game.",
+        "fascists_win_policy": "The rising tide of Fascism overcomes the populace. Six Fascist policies have been enacted. Game over. The Fascists win!",
+        "fascists_win_hitler": "The deceived populace elects a Fascist dictator to power. Hitler is now chancellor. Game over. The Fascists win!",
+        "liberals_win_policy": "The populace quells the rising tide of Fascism by enacting 5 Liberal policies. Game over. The Liberals win!",
+        "liberals_win_hitler": "In the aftermath, documents are found on the dead body which positively identify the deceased as Hitler. The Liberals win!",
+        "hitler_not_executed": "In the aftermath, documents are found on the dead body which reveal the deceased is **not** Hitler."
     },
 
     "roles": {
@@ -61,9 +66,7 @@
 
     "execution": {
         "msg1": "President {pres} moves toward a nearby table and reaches for a revolver resting on it. They raise the gun and point it at {executed}.",
-        "msg2": "President {pres} squeezes the trigger firing a shot that kills {executed} instantly.",
-        "hitler_killed": "In the aftermath, documents are found on the dead body which positively identify the deceased as Adolf Hitler. Liberals win!",
-        "not_hitler": "In the aftermath, documents are found on the dead body which reveal the deceased is **not** Adolf Hitler."
+        "msg2": "President {pres} squeezes the trigger firing a shot that kills {executed} instantly."
     },
 
     "veto": {
