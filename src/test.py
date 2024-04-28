@@ -1,4 +1,4 @@
-from game import Game, GameBoard
+from Classes.game import Game, GameBoard
 
 game = Game('test2112','Justin',2112)
 game.add_player(1,'Tom')
