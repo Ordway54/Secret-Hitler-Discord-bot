@@ -3,17 +3,21 @@
         "already_host": "{user}, you are the host of a game that's already in progress. Please issue the `.delgame` command before creating a new one.",
         "not_host": "{user}, you are not the host of any active games.",
         "not_in_game": "{user}, you are not in any active games at the moment.",
-        "not_in_game_or_lobby": "{user}, you're not in an active game or lobby.",
-        "user_already_in_game": "{user}, you're already in an active game. Issue command `.leave` to leave all active games you're in.",
+        "not_in_lobby": "{user}, you're not in the lobby.",
+        "already_in_game": "{user}, you're already in an active game. Issue command `.leave` to leave all active games you're in.",
         "cannot_abandon": "{user}, only the lobby host can abandon the lobby.",
-        "cannot_start": "Only the lobby host ({admin}) can start the game.",
-        "not_enough_players": "Not enough players in lobby. A minimum of {minimum} players is needed to start a game."
+        "cannot_start": "Only the lobby host (<@{admin}>) can start the game.",
+        "not_enough_players": "Not enough players in lobby. A minimum of {minimum} players is needed to start a game.",
+        "fascists_win_policy": "The rising tide of Fascism overcomes the populace. Six Fascist policies have been enacted. Game over. The Fascists win!",
+        "fascists_win_hitler": "The deceived populace elects a Fascist dictator to power. Hitler is now chancellor. Game over. The Fascists win!",
+        "liberals_win_policy": "The populace quells the rising tide of Fascism by enacting 5 Liberal policies. Game over. The Liberals win!",
+        "liberals_win_hitler": "In the aftermath, documents are found on the dead body which positively identify the deceased as Hitler. The Liberals win!",
+        "hitler_not_executed": "In the aftermath, documents are found on the dead body which reveal the deceased is **not** Hitler."
     },
 
     "roles": {
         "sending": "Now sending secret roles to all players. **Check your DMs!** :speech_balloon:",
-        "role": "{user}, your role is **{role}**.",
-        "party": "You are a member of the **{party}** party."
+        "default": "{user}, your role is **{role}**. You are a member of the **{party}** party."
     },
     
     "nomination": {
@@ -31,14 +35,17 @@
         "tallying": "Tallying votes... :abacus:",
         "passed": ":white_check_mark: Vote passed! President **{pres}** and Chancellor **{chanc}** are elected.",
         "failed": ":x: Vote failed! Presidential nominee **{pres}** and Chancellor nominee **{chanc}** are not elected."
-
     },
 
     "legislative_pres": {
+        "3_policies": "You draw the following three policies. **Choose one to discard.**",
+        "pres_selecting": "President {pres} is selecting a policy to discard."
 
     },
 
     "legislative_chanc": {
+        "2_policies": "President {pres} passes you the following two policies. **Choose one to discard.**",
+        "chanc_selecting": "Chancellor {chanc} is selecting a policy to discard."
 
     },
     
@@ -48,25 +55,32 @@
     },
 
     "special_election": {
-        "announcement": "Incumbent President {incumbent_pres} has nominated {nominated_pres} to run in this upcoming Special Election!"
+        "announcement": "Incumbent President {incumbent_pres} has nominated {nominated_pres} to run in this upcoming Special Election!",
+        "prompt_pres": "President {nominated_pres}, choose a player to nominate as Chancellor."
     },
 
     "policy_peek": {
-        "pres_msg": "**FOR THE EYES OF PRESIDENT {pres} ONLY**\nYou peek at the top 3 policy tiles in the deck and see the following policies: {p1}, {p2}, {p3}\n{warning}",
-        "public_msg": "President {pres} takes the top 3 policy tiles in the policy tile deck and looks at them in secret before returning them to the top of the deck with the order unchanged."
+        "pres_msg": "**FOR THE EYES OF PRESIDENT {pres} ONLY**\nYou peek at the top 3 policy tiles in the deck and see the following: {p1}, {p2}, {p3}\n{warning}",
+        "public_msg": "President {pres} has viewed the top 3 policies in the policy tile draw deck."
     },
 
     "execution": {
         "msg1": "President {pres} moves toward a nearby table and reaches for a revolver resting on it. They raise the gun and point it at {executed}.",
-        "msg2": "President {pres} squeezes the trigger firing a shot that kills {executed} instantly.",
-        "hitler_killed": "In the aftermath, documents are found on the dead body which positively identify the deceased as Adolf Hitler. Liberals win!",
-        "not_hitler": "In the aftermath, documents are found on the dead body which reveal the deceased is **not** Adolf Hitler."
+        "msg2": "President {pres} squeezes the trigger firing a shot that kills {executed} instantly."
     },
 
     "veto": {
         "prompt_pres": "President {pres}: Chancellor {chanc} wishes to veto this agenda. Do you agree?",
-        "pres_accepts": "President {pres} has **agreed to** the veto. No policy is enacted. The populace grows increasingly more frustrated. The election tracker advances by one.",
-        "pres_declines": "President {pres} has **refused** the veto. Chancellor {chancellor}, you must enact a policy.",
+        "pres_accepts": "President {pres} has **agreed** to the veto. No policy is enacted. The populace grows increasingly frustrated. The election tracker advances by one.",
+        "pres_declines": "President {pres} has **refused** the veto. Chancellor {chanc}, you must enact a policy.",
         "pres_declines_chanc_msg": "President {pres} has refused your motion to veto the agenda. You must choose one policy to discard. The other remaining policy will be enacted."
+    },
+
+    "warning": {
+        "no_share": "**Remember:** You may choose to share this information (or lie about it!) with other players, but you may **not** show share this message as proof in any way, shape, or form, to any other player."
+    },
+
+    "legal": {
+        "license_terms": "Secret Hitler was created by Mike Boxleiter, Tommy Maranges, and Mac Schubert.\nSecret Hitler is licensed under a Creative Commons Attribution-NonCommercial-ShareAlike 4.0 International License. This license permits the copying and redistribution of Secret Hitler in any medium or format for non-commercial purposes.\nVisit http://www.secrethitler.com/ to learn more."
     }
 }

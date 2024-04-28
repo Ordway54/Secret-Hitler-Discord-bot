@@ -1,8 +1,14 @@
+"""
+This module manages all Discord events and user input and modifies the
+Game object associated with each event and user interaction.
+"""
+
 import discord
 from discord.ext import commands
 from discord.ext.commands import Context, Bot
 import asyncio
 import re
+import json
 import sys
 sys.path.append('src')
 from game import Game, GameState, Player
@@ -10,14 +16,10 @@ from game import Game, GameState, Player
 # Testing constants
 DEL_AFTER_TIME = 10
 
-def strip_spacing(input_string) -> str:
-    """
-    Returns input_string stripped of tab characters and line breaks so that
-    each word is separated by a single space. This is useful for\
-    eliminating the janky formatting that results when sending multiline\
-    strings as Discord messages.
-    """
-    return re.sub(r'\s+', ' ', input_string)
+# read in game-related messages to memory
+with open(r"src\messages.json") as f:
+    messages: dict = json.load(f)
+
 
 class SHGameMaintenance(commands.Cog):
 
@@ -56,10 +58,9 @@ class SHGameMaintenance(commands.Cog):
         for game in self.active_games.values():
             game: Game
             if game.admin_id == admin_id:
-                msg = strip_spacing(f"""<@{admin_id}>, you are the host\
-                    of a game that's already in progress. Please issue the\
-                    `.delgame` command before creating a new one.""")
-                await context.channel.send(msg)              
+                msg: str = messages["manage_game"]["already_host"]
+                msg = msg.format(user=context.message.author.name)
+                await context.channel.send(msg)
                 return
         
         guild = context.channel.guild
@@ -120,8 +121,10 @@ class SHGameMaintenance(commands.Cog):
                 self.active_games.pop(game.game_id)
                 # await context.author.send(f"Your active SH game has been deleted. You can now create a new one if you wish.", delete_after=30)
                 return
-
-        await context.channel.send(f'<@{author_id}>, you are not the host of any active games.')
+        
+        msg: str = messages["manage_game"]["not_host"]
+        msg.format(user=context.message.author.name)
+        await context.channel.send(msg)
 
     @commands.command(aliases=("terms","legal","license","licensing","tos"))
     async def send_licensing(self, context: Context):
@@ -129,7 +132,8 @@ class SHGameMaintenance(commands.Cog):
         url = "https://www.secrethitler.com/"
         color = Game.SH_ORANGE
         
-        terms_embed = discord.Embed(title=title,description=Game.LICENSE_TERMS,url=url,color=color)
+        copy : str = messages["legal"]["license_terms"]
+        terms_embed = discord.Embed(title=title,description=copy,url=url,color=color)
 
         await context.channel.send(embed=terms_embed)
     
@@ -148,12 +152,13 @@ class SHGameMaintenance(commands.Cog):
                     return
         
         # no active games with user found
-        await context.message.reply(
-            f"{user.mention}, you are not in any active games at the moment.")
+        msg: str = messages["manage_game"]["not_in_game"]
+        msg.format(user=user.name)
+        await context.message.reply(msg)
         
     async def send_roles(self, game: Game):
-        botmsg = await game.text_channel.send(
-            "Now sending secret roles to all players. **Check your DMs!** :speech_balloon:")
+
+        botmsg = await game.text_channel.send(messages["roles"]["sending"])
         
         game.assign_roles()
         Hitler = game.get_hitler()
@@ -161,10 +166,12 @@ class SHGameMaintenance(commands.Cog):
         fascist_team = game.get_team("Fascist")
 
         for player in game.players:
+            player: Player
             user = self.bot.get_user(player.get_id())
             team = player.get_party()
 
-            msg = f"{player.name}, your role is **{player.role}**.\nYou are a member of the **{team}** party."
+            msg: str = messages["roles"]["default"]
+            msg.format(user=player.name,role=player.role,party=team)
             
             if player.role == "Hitler" and Hitler_knows_fascists:
                 fellow_fascists = [f.name for f in fascist_team if f.name != player.name]
@@ -184,14 +191,19 @@ class SHGameMaintenance(commands.Cog):
             "Game over!"
         )
 
-    async def start_voting(self, game: Game): # pass game instance to access text channel, not Textchannel
-
-        await game.text_channel.send("Time to vote! :ballot_box:")
+    async def start_voting(self, game: Game):
         
-        msg = f"Elect President {game.nominated_president.name} and Chancellor {game.nominated_chancellor.name}?"
+        msg : str = messages["election"]["announce_start"]
+        await game.text_channel.send(msg)
+        
+        msg : str = messages["election"]["announce_candidates"]
+        msg.format(pres=game.nominated_president.name,
+                   chanc=game.nominated_chancellor.name)
+        
         await game.text_channel.send(msg,view=VotingView(game,self))
     
     async def start_nomination(self, game: Game, pres: Player):
+        game.state = GameState.NOMINATION
         game.nominated_president = pres
         user = self.bot.get_user(pres.get_id())
         
@@ -204,11 +216,33 @@ class SHGameMaintenance(commands.Cog):
     async def start_election(self):
         pass
 
-    async def start_legislative_pres(self):
-        pass
+    async def start_legislative_pres(self, game: Game):
+        game.state = GameState.LEGISLATIVE_PRESIDENT
 
-    async def start_legislative_chanc(self):
-        pass
+        # public announcement
+        msg : str = messages['legislative_pres']["pres_selecting"]
+        msg.format(pres=game.incumbent_president.name)
+        await game.text_channel.send(msg)
+
+        # DM President drawn policy tiles
+        msg2 : str = messages["legislative_pres"]["3_policies"]
+        pres = self.bot.get_user(game.incumbent_president.get_id())
+        await pres.send(msg2,view=LegislativeSessionView(game,self))
+
+
+    async def start_legislative_chanc(self, game: Game):
+        game.state = GameState.LEGISLATIVE_CHANCELLOR
+
+        # public announcement
+        msg : str = messages["legislative_chanc"]["chanc_selecting"]
+        msg.format(chanc=game.incumbent_chancellor.name)
+        await game.text_channel.send(msg)
+
+        # DM Chancellor policy tiles
+        msg2 : str = messages["legislative_chanc"]["2_policies"]
+        msg2.format(pres=game.incumbent_president.name)
+        chanc = self.bot.get_user(game.incumbent_chancellor.get_id())
+        await chanc.send(msg2, view=LegislativeSessionView(game,self))
 
     async def start_veto(self):
         pass
@@ -306,9 +340,8 @@ class GameLobbyView(discord.ui.View):
             embed.set_field_at(1,name="Players in Lobby",value="\n".join([player.name for player in self.game.players]))
             await self.game.lobby_embed_msg.edit(embed=embed)
         else:
-            msg = strip_spacing(
-                f"""{interaction.user.mention}, you are already in an active game.
-                  Issue `.leave` to leave all active games.""")
+            msg: str = messages["manage_game"]["already_in_game"]
+            msg.format(user=interaction.user.name)
             await interaction.response.send_message(msg, delete_after=DEL_AFTER_TIME)
     
         
@@ -321,8 +354,9 @@ class GameLobbyView(discord.ui.View):
             embed.set_field_at(1,name="Players in Lobby",value='\n'.join([player.name for player in self.game.players]))
             await self.game.lobby_embed_msg.edit(embed=embed)
         else:
-            await interaction.response.send_message(
-                content=f"{interaction.user.mention}, you are not in an active game or lobby.")
+            msg: str = messages["manage_game"]["not_in_lobby"]
+            msg.format(user=interaction.user.name)
+            await interaction.response.send_message(msg)
     
     @discord.ui.button(label="Abandon Lobby",style=discord.ButtonStyle.red)
     async def abandon_lobby(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -330,9 +364,9 @@ class GameLobbyView(discord.ui.View):
             await interaction.message.edit(view=None)
             await self.game_manager.delete_game(self.game)
         else:
-            await interaction.response.send_message(
-                content=f"{interaction.user.mention}, only the lobby host can abandon the lobby.",
-                delete_after=DEL_AFTER_TIME)
+            msg: str = messages["manage_game"]["cannot_abandon"]
+            msg.format(user=interaction.user.name)
+            await interaction.response.send_message(msg,delete_after=DEL_AFTER_TIME)
     
     @discord.ui.button(label="Start Game",style=discord.ButtonStyle.blurple)
     async def start_game(self, interaction: discord.Interaction, button: discord.ui.Button):
@@ -344,10 +378,13 @@ class GameLobbyView(discord.ui.View):
                 await interaction.message.edit(view=None)
                 await interaction.response.send_message(content="Starting game!")
             else:
-                await interaction.response.send_message(
-                    content=f"Not enough players in lobby. A minimum of {Game.MIN_PLAYERS} players is needed to start a game.",delete_after=DEL_AFTER_TIME)
+                msg: str = messages["manage_game"]["not_enough_players"]
+                msg.format(minimum=Game.MIN_PLAYERS)
+                await interaction.response.send_message(msg,delete_after=DEL_AFTER_TIME)
         else:
-            await interaction.response.send_message(content=f"Only the lobby host (<@{self.game.admin_id}>) can start the game.", delete_after=DEL_AFTER_TIME)
+            msg: str = messages["manage_game"]["cannot_start"]
+            msg.format(admin=self.game.admin_id)
+            await interaction.response.send_message(msg, delete_after=DEL_AFTER_TIME)
 
 
 class PresidentialPowerView(discord.ui.View):
@@ -429,19 +466,18 @@ class PresidentialPowerView(discord.ui.View):
             player_to_investigate.investigated = True
             president_name = interaction.user.name
 
-            msg = (
-                f"""
-                **FOR THE EYES OF PRESIDENT {president_name.upper()} ONLY**\n
-                President {president_name},\nYou chose to investigate {player_to_investigate.name}.
-                They are a member of the {player_to_investigate.get_party()} party.\n
-                {SHGameMaintenance.NO_SHARE_WARNING}
-                """)
+            msg : str = messages["investigate"]["pres_msg"]
+            msg.format(pres=president_name,
+                       investigated=player_to_investigate.name,
+                       investigated_party=player_to_investigate.get_party(),
+                       warning=messages["warning"]["no_share"])
             
             # DM investigated player's party loyalty to President
             await interaction.user.send(msg, delete_after=DEL_AFTER_TIME)
 
-            await interaction.message.channel.send(
-                f"""President {interaction.user.name} chose to investigate the party loyalty of {player_to_investigate.name}!""")
+            msg2 : str = messages["investigate"]["announce_choice"]
+            msg2.format(pres=president_name,investigated=player_to_investigate.name)
+            await interaction.message.channel.send(msg2)
 
     async def cb_special_election(self, interaction: discord.Interaction):
         """A callback function for the Call Special Election buttons."""
@@ -456,14 +492,15 @@ class PresidentialPowerView(discord.ui.View):
             nominated_pres = self.game.get_player(player_id)
             self.game.nominated_president = nominated_pres
 
-            msg = strip_spacing(f"""Incumbent President\ 
-                {self.game.incumbent_president.name} has nominated {nominated_pres.name}
-                to run in this upcoming Special Election!""")
+            msg : str = messages["special_election"]["announcement"]
+            msg.format(incumbent_pres=self.game.incumbent_president.name,
+                       nominated_pres=self.game.nominated_president.name)
             
-            await interaction.message.channel.send(content=msg)
+            await interaction.message.channel.send(msg)
 
             # prompt new Presidential nominee
-            msg2 = f"{nominated_pres.name}, choose a player to nominate as Chancellor."
+            msg2 : str = messages["special_election"]["prompt_pres"]
+            msg2.format(nominated_pres=self.game.nominated_president.name)
             await interaction.message.channel.send(msg2,view=NominationView(self.game,self.game_manager))
 
     async def cb_policy_peek(self, interaction: discord.Interaction):
@@ -478,18 +515,17 @@ class PresidentialPowerView(discord.ui.View):
             p1, p2, p3 = self.game.policy_peek()
             pres_name = interaction.user.name
 
-            msg = strip_spacing(f"""
-                    **FOR THE EYES OF PRESIDENT {pres_name.upper()} ONLY**\n
-                    You peek at the top 3 policy tiles in the deck and see the\
-                    following policies: {p1}, {p2}, {p3}\n
-                    {SHGameMaintenance.NO_SHARE_WARNING}""")
+            msg : str = messages["policy_peek"]["pres_msg"]
+            msg.format(pres=pres_name,
+                       p1=p1,
+                       p2=p2,
+                       p3=p3,
+                       warning=messages["warning"]["no_share"])
+
+            await interaction.user.send(msg,delete_after=DEL_AFTER_TIME)
             
-            await interaction.user.send(content=msg,delete_after=DEL_AFTER_TIME)
-            
-            msg2 = strip_spacing(f"""President {pres_name} takes the top 3\
-                    policy tiles in the policy tile deck and looks at them\
-                    in secret before returning them to the top of the deck with\
-                    their order unchanged.""")
+            msg2 : str = messages["policy_peek"]["public_msg"]
+            msg2.format(pres=pres_name)
             
             await interaction.message.channel.send(msg2)
             
@@ -519,12 +555,12 @@ class PresidentialPowerView(discord.ui.View):
                     f"""President {pres_name} says aloud: "I formally execute {chosen_player.name}" and fires a shot killing them instantly.""")
                 await asyncio.sleep(5)
                 if chosen_player.role == "Hitler":
-                    await interaction.message.channel.send(
-                        f"""In the aftermath, documents are found on the dead body which positively identify the deceased as Adolf Hitler. Liberals win!""")
                     self.game.state = GameState.GAME_OVER
+                    msg : str = messages["manage_game"]["liberals_win_hitler"]
+                    await interaction.message.channel.send(msg)
+                    
                 else:
-                    await interaction.message.channel.send(
-                        f"""In the aftermath, documents are found on the dead body which reveal the deceased is **not** Adolf Hitler.""")
+                    await interaction.message.channel.send(messages["manage_game"]["hitler_not_executed"])
 
 
 class NominationView(discord.ui.View):
@@ -542,7 +578,7 @@ class NominationView(discord.ui.View):
         for i, player in enumerate(eligible):
             player: Player
             btn = discord.ui.Button(style=discord.ButtonStyle.blurple,
-                                    custom_id=f"{player.name}{i}",
+                                    custom_id=str(player.get_id()),
                                     label=player.name)
             btn.callback = self.nominate
             self.add_item(btn)
@@ -551,13 +587,15 @@ class NominationView(discord.ui.View):
         user_is_pres_nom = self.game.is_nominated_president(interaction.user.id)
 
         if user_is_pres_nom:
-            choice = interaction.data.get('custom_id')[:-1]
+            self.game.nominated_chancellor : Player = self.game.get_player(int(interaction.data.get('custom_id')))
             await interaction.message.edit(view=None)
 
-            msg = f"Presidential nominee {interaction.user.name} has nominated **{choice}** as Chancellor."
-            await self.game.text_channel.send(msg,view=VotingView(self.game,self.game_manager))
-
-            await self.game_manager.start_voting(self.game.text_channel)
+            msg : str = messages["nomination"]["chanc_nominated"]
+            msg.format(nominated_pres=self.game.nominated_president.name,
+                       nominated_chanc=self.game.nominated_chancellor.name)
+            
+            await self.game.text_channel.send(msg)
+            await self.game_manager.start_voting(self.game)
 
         else:
             interaction.response(
@@ -593,44 +631,53 @@ class VotingView(discord.ui.View):
         chn = self.game.text_channel
 
         if res == 0:
-            await chn.send(
-                f"{interaction.user.mention}, your vote was recorded. :ballot_box_with_check:",
-                delete_after=DEL_AFTER_TIME)
+            msg : str = messages["election"]["vote_recorded"]
+            msg.format(user=interaction.user.mention)
+            await chn.send(msg,delete_after=DEL_AFTER_TIME)
         
         elif res == 1:
-            await chn.send(
-                f"{interaction.user.mention}, you've already cast your vote.",
-                delete_after=DEL_AFTER_TIME)
+            msg : str = messages["election"]["vote_cast"]
+            msg.format(user=interaction.user.mention)
+            await chn.send(msg,delete_after=DEL_AFTER_TIME)
         
         elif res == 2:
-            vote_passed = self.game.tally_votes()
-            
             await interaction.message.edit(view=None)
-            await chn.send(
-                f"All votes are in! :ballot_box: :ballot_box_with_check:")
+            await chn.send(messages["election"]["all_votes_in"])
+            
+            vote_passed = self.game.tally_votes()
+
+            show_votes = ""
+
+            for player_id, vote in self.game.votes.items():
+                player = self.game.get_player(player_id)
+                show_votes += f"{player.name}: {vote}\n"
+            
+            
             async with chn.typing():
                 await chn.send("Tallying votes... :abacus:")
-                await asyncio.sleep(3)
+                await asyncio.sleep(1)
+                await chn.send(show_votes)
 
                 if vote_passed:
-                    pres = self.game.incumbent_president.name
-                    chan = self.game.incumbent_chancellor.name
 
-                    await chn.send(
-                        f":white_check_mark: Vote passed! President **{pres}** and Chancellor **{chan}** are elected.")
+                    msg : str = messages["election"]["passed"]
+                    msg.format(pres=self.game.incumbent_president.name,
+                               chanc=self.game.incumbent_chancellor.name)
+                    await chn.send(msg)
                     
-                    self.game.state = GameState.LEGISLATIVE_PRESIDENT
                     self.game_manager.start_legislative_pres()
+                
                 else:
-                    await chn.send(
-                        f":x: Vote failed! Presidential nominee **{pres}** and Chancellor nominee **{chan}** are not elected.")
+                    msg : str = messages["election"]["failed"]
+                    msg.format(pres=self.game.nominated_president.name,
+                               chanc=self.game.nominated_chancellor.name)
+                    await chn.send(msg)
                     
                     pres_index = self.game.rotate_president()
-                    self.game.state = GameState.NOMINATION
                     self.game_manager.start_nomination(self.game,self.game.players[pres_index])
+            
+        self.game.votes.clear()
 
-
-        
 
 class LegislativeSessionView(discord.ui.View):
     """Represents the View applied when a legislative session is underway."""
@@ -649,9 +696,9 @@ class LegislativeSessionView(discord.ui.View):
         if self.game.state == GameState.LEGISLATIVE_PRESIDENT:
             print("Legislative view: pres")
             
-            self.policy_tiles = self.game.policy_tile_deck[:3]
+            self.game.policies_in_play = self.game.policy_tile_deck[:3]
 
-            for index, tile in enumerate(self.policy_tiles):
+            for index, tile in enumerate(self.game.policies_in_play):
                 btn = discord.ui.Button(style=discord.ButtonStyle.blurple,
                                         custom_id=f"{tile}{index}", # eg. "Fascist1"
                                         label=f"Discard {tile} Policy")
@@ -661,12 +708,9 @@ class LegislativeSessionView(discord.ui.View):
 
         elif self.game.state == GameState.LEGISLATIVE_CHANCELLOR:
             print("Legislative view: chanc")
-
-            # get top 2 policies from deck
-            self.policy_tiles = self.game.policy_tile_deck[:2]
             
             # create a discard button for each tile
-            for index, tile in enumerate(self.policy_tiles):
+            for index, tile in enumerate(self.game.policies_in_play):
                 btn = discord.ui.Button(style=discord.ButtonStyle.blurple,
                                         custom_id=f"{tile}{index}",
                                         label=f"Discard {tile} Policy")
@@ -691,20 +735,14 @@ class LegislativeSessionView(discord.ui.View):
         user_is_president = self.game.is_president(interaction.user.id)
 
         if user_is_president:
+            await interaction.message.edit(view=None)
+
             # ignore last index position ("Fascist1" -> "Fascist")
             discarded = interaction.data.get('custom_id')[:-1]
-            self.policy_tiles.remove(discarded)
+            self.game.policies_in_play.remove(discarded)
             self.game.discard_policy_tile(discarded)
 
-            self.game.state = GameState.LEGISLATIVE_CHANCELLOR
-
-            chancellor = (self.game_manager.bot.get_user(
-                        self.game.incumbent_chancellor.get_id()))
-            pres = interaction.user.name
-            
-            await chancellor.send(
-                content=f"President {pres} passes you the following policies: {', '.join(self.policy_tiles)}",
-                view=LegislativeSessionView(self.game,self.game_manager))
+            await self.game_manager.start_legislative_chanc(self.game)
 
     async def cb_veto(self, interaction: discord.Interaction):
         """A callback function for vetoing the agenda."""
@@ -733,14 +771,15 @@ class LegislativeSessionView(discord.ui.View):
         user_is_president = self.game.is_president(interaction.user.id)
 
         if user_is_president:
-            await interaction.message.edit(view=None) # remove view
+            await interaction.message.edit(view=None)
             discard = interaction.data.get("custom_id")
             pres = interaction.user.name
             chancellor = self.game_manager.bot.get_user(self.game.incumbent_chancellor.get_id())
 
             if discard == "agree":
-                await self.game.text_channel.send(
-                    f"""President {pres} has **agreed to** the veto. No policy is enacted. The populace grows increasingly more frustrated. The election tracker advances by one.""")
+                msg : str = messages["veto"]["pres_accepts"]
+                msg.format(pres=pres)
+                await self.game.text_channel.send(msg)
                 self.game.veto()
                 self.game.state = GameState.NOMINATION
             
@@ -748,13 +787,12 @@ class LegislativeSessionView(discord.ui.View):
                 self.game.state = GameState.LEGISLATIVE_CHANCELLOR
                 print("Pres refused veto. Return to Chancellor decision.")
 
-                await self.game.text_channel.send(
-                    f"""President {pres} has **refused** the veto. Chancellor {chancellor.mention}, you must enact a policy.""")
+                msg : str = messages["veto"]["pres_declines"]
+                msg.format(pres=pres,chanc=chancellor.name)
+                await self.game.text_channel.send(msg)
                 
-                msg = strip_spacing(
-                    f"""President {pres} has refused your motion to veto the agenda. 
-                    You must choose one policy to discard. The other remaining policy 
-                    will be enacted.""")
+                msg : str = messages["veto"]["pres_declines_chanc_msg"]
+                msg.format(pres=pres)
                 await chancellor.send(msg, view=LegislativeSessionView(game=self.game,
                                                                        game_manager=self.game_manager,
                                                                        veto_failed=True))
@@ -765,21 +803,13 @@ class LegislativeSessionView(discord.ui.View):
 
         if user_is_chancellor:
             await interaction.message.edit(view=None)
-            discard = interaction.data.get('custom_id')
-            discard_index = discard[-1] # should be either '0' or '1'
+            discard = interaction.data.get('custom_id')[:-1]
+            self.game.policies_in_play.remove(discard)
+            self.game.discard_policy_tile(discard)
 
-            if discard_index == '0':
-                # user discarded policy in index 0, enact policy in index 1
-                enact = self.game.policy_tile_deck[1]
-                self.game.enact_policy(enact)
-
-            elif discard_index == '1':
-                # user discarded policy in index 1, enact policy in index 0
-                enact = self.game.policy_tile_deck[0]
-                self.game.enact_policy(enact)
+            self.game.enact_policy(self.game.policies_in_play[0])
             
-            await interaction.message.edit(view=None)
-            self.game.state = GameState.NOMINATION
+            self.game_manager.start_nomination(self.game,)
 
 
 async def setup(bot):
