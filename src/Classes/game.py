@@ -6,7 +6,7 @@ import random
 from enum import Enum
 from config import configuration
 import discord
-from game_board import GameBoard
+from Classes.game_board import GameBoard
 
 class Game:
     """Represents a game of Secret Hitler."""
@@ -504,28 +504,6 @@ class Game:
 
         else:
             self.remove_player(player.id)
-
-
-class Player:
-    """Represents a Player in a Secret Hitler game."""
-
-    def __init__(self, player_id: int, player_name: str):
-        self.player_id = player_id
-        self.name = player_name
-        self.role = None
-        self.dead = False
-        self.investigated = False
-    
-    def get_party(self):
-        if self.role == "Fascist" or self.role == "Hitler":
-            return "Fascist"
-        else:
-            return "Liberal"
-    
-    def get_id(self):
-        """Returns the Player's Discord ID."""
-
-        return self.player_id
 
 
 class GameState(Enum):
